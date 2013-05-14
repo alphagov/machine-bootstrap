@@ -11,10 +11,12 @@ try:
     import paramiko
 except:
     print "Paramiko not installed, please run 'pip install paramiko'"
+    sys.exit(255)
 try:
     from passlib.hash import sha512_crypt
 except:
     print "PassLib not installed, please run 'pip install passlib'"
+    sys.exit(255)
 
 # Argument parsing
 parser = argparse.ArgumentParser(description='Changes the password of a user on a linux machine to a random string using ssh')
