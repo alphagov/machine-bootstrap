@@ -17,13 +17,13 @@ except:
     print "PassLib not installed, please run 'pip install passlib'"
 
 # Argument parsing
-parser = argparse.ArgumentParser(description='Bootstrap a machine')
+parser = argparse.ArgumentParser(description='Changes the password of a user on a linux machine to a random string using ssh')
 parser.add_argument('ip',help="IP of machine to connect to")
 parser.add_argument('-d',dest='debug',action='store_true',default=False,help="Show debug output")
 parser.add_argument('-l',dest='length',type=int,default=12,help="Length of auto-generated password [12]")
 parser.add_argument('-p',dest='prompt',action='store_true',default=False,help="Prompt for password [otherwise assume it is 'ubuntu']")
-parser.add_argument('-P',dest='port',nargs='?',type=int,default=22,help="Port to connect to [22]")
-parser.add_argument('-u',dest='username',nargs='?',default='ubuntu',help="Username to connect as [ubuntu]")
+parser.add_argument('-P',dest='port',type=int,default=22,help="Port to connect to [22]")
+parser.add_argument('-u',dest='username',default='ubuntu',help="Username to connect as [ubuntu]")
 config = parser.parse_args()
 if config.prompt:
     config.password = getpass.getpass('Password for %s@%s: ' % (config.username,config.ip))
