@@ -1,25 +1,45 @@
 #!/usr/bin/env python
+# Standard python libraries
 import argparse
 import crypt
 import getpass
-import paramiko
-from passlib.hash import sha512_crypt
 import random
 import string
+import sys
+# Non-standard python libraries
+try:
+    import paramiko
+except:
+    print "Paramiko not installed, please run 'pip install paramiko'"
+try:
+    from passlib.hash import sha512_crypt
+except:
+    print "PassLib not installed, please run 'pip install passlib'"
 
 # Argument parsing
 parser = argparse.ArgumentParser(description='Bootstrap a machine')
 parser.add_argument('ip',help="IP of machine to connect to")
-parser.add_argument('--username','-u',nargs='?',default='ubuntu',help="Username to connect as (ubuntu)")
-parser.add_argument('--prompt','-p',nargs='?',const=True,default=False,help="Prompt for password (otherwise assume it is 'ubuntu')")
-parser.add_argument('--port','-P',nargs='?',type=int,default=22,help="Port to connect to (22)")
-parser.add_argument('--debug','-d',nargs='?',const=True,default=False,help="Show debug output")
+parser.add_argument('-d',dest='debug',action='store_true',default=False,help="Show debug output")
+parser.add_argument('-l',dest='length',type=int,default=12,help="Length of auto-generated password [12]")
+parser.add_argument('-p',dest='prompt',action='store_true',default=False,help="Prompt for password [otherwise assume it is 'ubuntu']")
+parser.add_argument('-P',dest='port',nargs='?',type=int,default=22,help="Port to connect to [22]")
+parser.add_argument('-u',dest='username',nargs='?',default='ubuntu',help="Username to connect as [ubuntu]")
 config = parser.parse_args()
 if config.prompt:
-    config.password = getpass.getpass('Enter the SSH password for this machine: ')
+    config.password = getpass.getpass('Password for %s@%s: ' % (config.username,config.ip))
 else:
     config.password = 'ubuntu'
 # End argument parsing
+
+# General helped functions
+def throw_error(string,exitcode):
+    print "[ERROR]: %s, try again with debug mode on (-d)" % string
+    sys.exit(exitcode)
+
+def debug_print(message):
+    if config.debug:
+        print "[DEBUG]: %s" % message
+# End helper functions
 
 # Password generation and Encryption
 def choose_random_chars(alphabet,length):
@@ -30,44 +50,59 @@ def choose_random_chars(alphabet,length):
 
 def generate_salt(length):
     salt_alphabet = string.digits + string.ascii_letters + "./"
-    return choose_random_chars(salt_alphabet,length)
+    salt = choose_random_chars(salt_alphabet,length)
+    debug_print("... ... SALT %s" % salt)
+    return salt
 
 def generate_password(length):
     password_alphabet = string.digits + string.ascii_letters
-    return choose_random_chars(password_alphabet,length)
+    password = choose_random_chars(password_alphabet,length)
+    debug_print("... ... PASSWORD %s" % password)
+    return password
 
 def encrypt_password(password):
     return sha512_crypt.encrypt(password,salt=generate_salt(8),rounds=5000)
 
 def new_password(user):
-    password = generate_password(12)
-    print "Password for %s user will be %s" % (user,password)
-    return "%s:" % user + encrypt_password(password) + ":15839:0:99999:7:::"
-
+    debug_print("... Generating password")
+    output = {}
+    output['password'] = generate_password(config.length)
+    output['shadow'] = "%s:" % user + encrypt_password(output['password']) + ":15839:0:99999:7:::"
+    debug_print("... ... SHADOW %s " % output['shadow'])
+    return output
 # End password generation and encryption
 
 # SSH connections
 def ssh_connect(password=config.password):
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    print 'Connecting to %s on port %s as %s' % (config.ip,config.port,config.password)
-    ssh.connect(config.ip,username=config.username,password=password,port=config.port)
+    debug_print('... Connecting to %s on port %s with %s:%s' % (config.ip,config.port,config.username,password))
+    try:
+        ssh.connect(config.ip,username=config.username,password=password,port=config.port)
+    except:
+        throw_error("Could not connect to machine",1)
     return ssh
 
 def ssh_runcommand(session,command):
-    stdin, stdout, stderr = session.exec_command(command)
+    try:
+        stdin, stdout, stderr = session.exec_command(command)
+    except:
+        throw_error("Command failed - %s" % command,2)
     for line in stdout.readlines():
-        if config.debug:
-            print '[DEBUG] stdout: %s' % line
+            debug_print('stdout: %s' % line)
     for line in stderr.readlines():
-        if config.debug:
-            print '[DEBUG] stderr: %s' % line
+            debug_print('stderr: %s' % line)
 
 def ssh_changepassword(user):
-    command = "sudo sed -i 's;" + user + ":.*;" + new_password(user) + ";g' /etc/shadow"
+    passwd = new_password(user)
+    command = "sudo sed -i 's;" + user + ":.*;" + passwd['shadow'] + ";g' /etc/shadow"
     ssh_runcommand(ssh_connect(),command)
-
+    try:
+        debug_print("... Testing new password")
+        ssh_runcommand(ssh_connect(passwd['password']),'uname -a')
+    except:
+        throw_error("Could not connect to machine after password change",3)
+    print "Password for %s@%s is %s" % (user,config.ip,passwd['password'])
 # End SSH connections
 
 ssh_changepassword('ubuntu')
-#ssh_changepassword('root')
