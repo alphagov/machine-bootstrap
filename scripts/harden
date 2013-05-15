@@ -31,6 +31,8 @@ Usage:
 
     optional arguments:
         -h, --help   show this help message and exit
+        -H, --harden-only
+                     Do not change the password, simply run Puppet to harden the machine [False]
         -d           Show debug output
         -l LENGTH    Length of auto-generated password [12]
         -p           Prompt for password [otherwise assume it is 'ubuntu']
@@ -62,6 +64,7 @@ except:
 parser = argparse.ArgumentParser(description='Hardens a default Ubuntu VM using SSH and Puppet')
 parser.add_argument('ip',help="IP of machine to connect to")
 parser.add_argument('-d',dest='debug',action='store_true',default=False,help="Show debug output")
+parser.add_argument('-H','--harden-only',dest='harden_only',action='store_true',default=False,help="Do not change the password, simply run Puppet to harden the machine [False]")
 parser.add_argument('-l',dest='length',type=int,default=12,help="Length of auto-generated password [12]")
 parser.add_argument('-p',dest='prompt',action='store_true',default=False,help="Prompt for password [otherwise assume it is 'ubuntu']")
 parser.add_argument('-P',dest='port',type=int,default=22,help="Port to connect to [22]")
@@ -158,9 +161,17 @@ def ssh_changepassword(user):
         throw_error("Could not connect to machine after password change",3)
 # End SSH connections
 
+# Puppet related tasks
+def apply_puppet():
+    print "This is where we would install and run puppet"
+# End puppet related tasks
+
 def main():
-    ssh_changepassword(config.username)
-    print "Password for %s@%s is now %s" % (config.username,config.ip,config.new_password)
+    if not config.harden_only:
+        ssh_changepassword(config.username)
+        print "Password for %s@%s is now %s" % (config.username,config.ip,config.new_password)
+        config.password = config.new_password
+    apply_puppet()
 
 if __name__ == "__main__":
     main()
