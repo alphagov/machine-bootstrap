@@ -1,3 +1,4 @@
+# This manifest is solely for inital provisioning in Vagrant. Real changes should be in site.pp
 node default {
   file { '/home/vagrant/.hushlogin':
     owner   => 'vagrant',
