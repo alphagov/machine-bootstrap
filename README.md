@@ -2,24 +2,25 @@
 
 This repository contains methods for bootstrapping blank machines.
 
-It currently contains a single script `scripts/harden` which can:
+It currently contains a single script `bin/bootstrap` which can:
 - Connect to a machine via SSH and set a random password
 - Connect to a machine via SSH and apply the puppet manifest in the `puppet` directory
-- A vagrant environment where `harden` can be tested
+- Run an optional bootstrap script (any lang available on destination) after initial puppet run
+- A vagrant environment where `bootstrap` can be tested
 
 #Instructions for hardening machines
 
 ## Generating a new SSH key automatically and hardening
 
-    ./scripts/harden ip.add.re.ss
+    ./bin/bootstrap ip.add.re.ss
 
 ## Supplying an SSH public key:
 
-    ./scripts/harden -k 'ssh-rsa LONGKEY comment' ip.add.re.ss
+    ./bin/bootstrap -k 'ssh-rsa LONGKEY comment' ip.add.re.ss
 
 ## Other options (only change password or only harden, non-default users/passwords/ports)
 
-    ./scripts/harden -h
+    ./bin/bootstrap -h
 
 #Instructions for development
 
@@ -37,7 +38,7 @@ with SSH listening on a random port (see output of vagrant).
 ## 2. Modify the VM using puppet
 
 The intention of this Repo is to provide a development platform where you can customise the VM using
-Puppet. This puppet code to harden a server can then be applied to remote servers.
+Puppet. This puppet code to configure a server can then be applied to remote servers.
 
 ### 2.1 Including External Puppet Modules
 
@@ -58,15 +59,15 @@ an external module does not exist, you must write one.
 classes or [native puppet types](http://docs.puppetlabs.com/references/latest/type.html)) to this node
 definition will make them available to your VM.
 
-To apply changed puppet code to your VM, from within this repository you can use the `scripts/harden`
+To apply changed puppet code to your VM, from within this repository you can use the `bin/bootstrap`
 command to connect to your local VM and apply changes. By default the VM password is ubuntu:ubuntu and
 SSH will listen on a random port on localhost (as set by Vagrant).
 
-    ./scripts/harden -H -d -P2222 localhost
+    ./bin/bootstrap -H -d -P2222 localhost
 
 ## Testing password changing against the VM
 
-    ./scripts/harden -C -d -P2222 localhost
+    ./bin/bootstrap -C -d -P2222 localhost
 
 - If you mess up the password, you can reset it either by destroying and recreating the VM or:
 
