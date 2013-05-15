@@ -161,12 +161,12 @@ def ssh_changepassword(user):
     """SSH to to a machine, try to change the password and test for success"""
     passwd = new_password(user)
     global config
-    config.new_password = passwd['password']
     command = "sudo sed -i 's;" + user + ":.*;" + passwd['shadow'] + ";g' /etc/shadow"
     ssh_runcommand(ssh_connect(),command)
     try:
         debug_print("... Testing new password")
         ssh_runcommand(ssh_connect(passwd['password']),'uname -a')
+        return passwd['password']
     except:
         throw_error("Could not connect to machine after password change",3)
 
@@ -181,8 +181,8 @@ def ssh_copyfile(session,sourcefile,destdir):
 # End SSH connections
 
 # Puppet related tasks
-def apply_puppet():
-    session = ssh_connect()
+def apply_puppet(password):
+    session = ssh_connect(password)
     # Copy the puppet dir from this repo
     ssh_copydir(session,'./puppet','/tmp/')
     # Puppet package is 2.7.11, we need >2.7.13 so remove it
@@ -195,18 +195,23 @@ def apply_puppet():
     ssh_runcommand(session,'cd /tmp/puppet; sudo librarian-puppet install')
     # Run puppet
     ssh_runcommand(session,'sudo puppet apply --modulepath=/tmp/puppet/vendor/modules /tmp/puppet/manifests/site.pp')
+    print "Hardening steps applied to machine via Puppet"
 
 # End puppet related tasks
 
 def main():
+    password = ""
     if config.harden_only and config.password_only:
         throw_error("-H and -C are mutually exclusive. If you want to change the password and harden the machine, remove both options",254)
     if not config.harden_only:
-        ssh_changepassword(config.username)
-        print "Password for %s@%s is now %s" % (config.username,config.ip,config.new_password)
-        config.password = config.new_password
+        password = ssh_changepassword(config.username)
+        print "Password for %s@%s is now %s" % (config.username,config.ip,password)
     if not config.password_only:
-        apply_puppet()
+        if password == "":
+            puppet_password = config.password
+        else:
+            puppet_password = password
+        apply_puppet(puppet_password)
 
 if __name__ == "__main__":
     main()
