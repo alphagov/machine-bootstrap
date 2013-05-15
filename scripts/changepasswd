@@ -69,7 +69,7 @@ else:
     config.password = 'ubuntu'
 # End argument parsing
 
-# General helped functions
+# General helper functions
 def throw_error(string,exitcode):
     """Print a message and exit with a status code"""
     print "[ERROR]: %s, try again with debug mode on (-d)" % string
@@ -143,6 +143,8 @@ def ssh_runcommand(session,command):
 def ssh_changepassword(user):
     """SSH to to a machine, try to change the password and test for success"""
     passwd = new_password(user)
+    global config
+    config.new_password = passwd['password']
     command = "sudo sed -i 's;" + user + ":.*;" + passwd['shadow'] + ";g' /etc/shadow"
     ssh_runcommand(ssh_connect(),command)
     try:
@@ -150,7 +152,11 @@ def ssh_changepassword(user):
         ssh_runcommand(ssh_connect(passwd['password']),'uname -a')
     except:
         throw_error("Could not connect to machine after password change",3)
-    print "Password for %s@%s is %s" % (user,config.ip,passwd['password'])
 # End SSH connections
 
-ssh_changepassword(config.username)
+def main():
+    ssh_changepassword(config.username)
+    print "Password for %s@%s is now %s" % (config.username,config.ip,config.new_password)
+
+if __name__ == "__main__":
+    main()
