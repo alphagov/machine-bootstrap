@@ -22,28 +22,7 @@ Description:
 
 Usage:
 
-    harden [-h] [-C] [-d] [-H] [-k AUTHORIZED_KEY] [-l LENGTH] [-p]
-           [-P PORT] [-u USERNAME] ip
-
-    Hardens a default Ubuntu VM using SSH and Puppet
-
-    positional arguments:
-      ip                    IP of machine to connect to
-
-    optional arguments:
-      -h, --help            show this help message and exit
-      -C, --change-password-only
-                            Change password, but do not attempt to run puppet on
-                            the machine [False]
-      -d                    Show debug output
-      -H, --harden-only     Do not change the password, simply run Puppet to
-                            harden the machine [False]
-      -k AUTHORIZED_KEY     Supply an authorized_keys entry for this user (quoted
-                            exact line format from .ssh/authorized_keys)
-      -l LENGTH             Length of auto-generated password [12]
-      -p                    Prompt for password [otherwise assume it is 'ubuntu']
-      -P PORT               Port to connect to [22]
-      -u USERNAME           Username to connect as [ubuntu]
+    bootstrap -h
 
 """
 
@@ -74,7 +53,7 @@ except:
     sys.exit(255)
 
 # Argument parsing
-parser = argparse.ArgumentParser(description='Hardens a default Ubuntu VM using SSH and Puppet')
+parser = argparse.ArgumentParser(description='Bootstraps a default Ubuntu VM using SSH and Puppet')
 parser.add_argument('ip',help="IP of machine to connect to")
 parser.add_argument('-C','--change-password-only',dest='password_only',action='store_true',default=False,help="Change password, but do not attempt to run puppet on the machine [False]")
 parser.add_argument('-d',dest='debug',action='store_true',default=False,help="Show debug output")
@@ -83,6 +62,7 @@ parser.add_argument('-k',dest='authorized_key',type=str,default="NONE",help="Sup
 parser.add_argument('-l',dest='length',type=int,default=12,help="Length of auto-generated password [12]")
 parser.add_argument('-p',dest='prompt',action='store_true',default=False,help="Prompt for password [otherwise assume it is 'ubuntu']")
 parser.add_argument('-P',dest='port',type=int,default=22,help="Port to connect to [22]")
+parser.add_argument('-s',dest='bootstrap_script',type=str,default="",help="Path to optional script to run after puppet configuration")
 parser.add_argument('-u',dest='username',default='ubuntu',help="Username to connect as [ubuntu]")
 config = parser.parse_args()
 if config.prompt:
@@ -213,8 +193,8 @@ def setup_key_auth(password,key):
 
 # end RSA key generation
 
-# Puppet related tasks
-def apply_puppet(password):
+# Machine configuration related tasks
+def configure_machine(password,bootstrap_script=""):
     info_print("Starting to harden using puppet ...")
     session = ssh_connect(password)
     # Copy the puppet dir from this repo
@@ -230,8 +210,14 @@ def apply_puppet(password):
     # Run puppet
     ssh_runcommand(session,'sudo puppet apply --modulepath=/tmp/puppet/vendor/modules /tmp/puppet/manifests/site.pp')
     info_print("Hardening steps applied to machine via Puppet")
+    if bootstrap_script != "":
+        info_print("Running optional bootstrap script - %s" % bootstrap_script)
+        ssh_copyfile(session,bootstrap_script,'~/provisioner.script')
+        ssh_runcommand(session,'chmod 755 ~/provisioner.script')
+        ssh_runcommand(session,'~/provisioner.script')
+        info_print("Optional bootstrap script complete")
 
-# End puppet related tasks
+# End machine configuration related tasks
 
 def main():
     if config.harden_only and config.password_only:
@@ -255,8 +241,8 @@ def main():
         else:
             key = config.authorized_key
         setup_key_auth(new_password,key)
-        apply_puppet(new_password)
-    info_print("Hardening script exiting successfully")
+        configure_machine(new_password,config.bootstrap_script)
+    info_print("Bootstrap script exiting successfully")
     sys.exit(0)
 
 if __name__ == "__main__":
