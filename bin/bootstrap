@@ -195,26 +195,29 @@ def setup_key_auth(password,key):
 
 # Machine configuration related tasks
 def configure_machine(password,bootstrap_script=""):
-    info_print("Starting to harden using puppet ...")
+    info_print("Copying up the puppet directory")
     session = ssh_connect(password)
     # Copy the puppet dir from this repo
     ssh_copydir(session,'./puppet','/tmp/')
+    info_print("Removing old puppet package")
     # Puppet package is 2.7.11, we need >2.7.13 so remove it
     ssh_runcommand(session,'sudo apt-get -y remove puppet puppet-common facter')
+    info_print("Installing puppet from Gems")
     # Install a good version of Puppet
     ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri puppet')
     ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri librarian-puppet')
     ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri facter')
     # Download our included puppet modules
+    info_print("Running librarian-puppet")
     ssh_runcommand(session,'cd /tmp/puppet; sudo librarian-puppet install')
     # Run puppet
+    info_print("Applying puppet config")
     ssh_runcommand(session,'sudo puppet apply --modulepath=/tmp/puppet/vendor/modules /tmp/puppet/manifests/site.pp')
-    info_print("Hardening steps applied to machine via Puppet")
     if bootstrap_script != "":
         info_print("Running optional bootstrap script - %s" % bootstrap_script)
         ssh_copyfile(session,bootstrap_script,'~/provisioner.script')
         ssh_runcommand(session,'chmod 755 ~/provisioner.script')
-        ssh_runcommand(session,'~/provisioner.script')
+        ssh_runcommand(session,'sudo ~/provisioner.script')
         info_print("Optional bootstrap script complete")
 
 # End machine configuration related tasks
