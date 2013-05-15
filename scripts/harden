@@ -50,11 +50,17 @@ import getpass
 import random
 import string
 import sys
+from contextlib import closing
 # Non-standard python libraries
 try:
     import paramiko
 except:
     print "Paramiko not installed, please run 'pip install paramiko'"
+    sys.exit(255)
+try:
+    import scpclient
+except:
+    print "Scpclient not installed, please run 'pip install scpclient'"
     sys.exit(255)
 try:
     from passlib.hash import sha512_crypt
@@ -162,10 +168,24 @@ def ssh_changepassword(user):
         ssh_runcommand(ssh_connect(passwd['password']),'uname -a')
     except:
         throw_error("Could not connect to machine after password change",3)
+
+def ssh_copydir(sourcedir,destdir):
+    ssh_client = ssh_connect()
+    with closing(scpclient.WriteDir(ssh_client.get_transport(), destdir)) as scp:
+        scp.send_dir(sourcedir, preserve_times=True)
+
+def ssh_copyfile(sourcefile,destdir):
+    ssh_client = ssh_connect()
+    with closing(scpclient.Write(ssh_client.get_transport(),destdir)) as scp:
+        scp.send_file(sourcefile, preserve_times=True)
+
 # End SSH connections
 
 # Puppet related tasks
 def apply_puppet():
+    ssh_copydir('./puppet','/tmp/')
+    ssh_copyfile('Puppetfile','/tmp/puppet/')
+    ssh_copyfile('Puppetfile.lock','/tmp/puppet/')
     print "This is where we would install and run puppet"
 # End puppet related tasks
 
