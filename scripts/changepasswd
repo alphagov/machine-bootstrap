@@ -1,4 +1,34 @@
 #!/usr/bin/env python
+"""
+Title: Change initial password on an Ubuntu VM
+License: MIT
+
+Description:
+    This script presumes that you have a user with passwordless sudo access and
+    you wish to change the password of that user. To avoid password prompting
+    and ever putting the clear-text password on the new VM, the mechanism of
+    changing is to generate an Ubuntu shadow file entry and place it into the
+    /etc/shadow file via SSH.
+
+Usage:
+
+    changepasswd [-h] [-d] [-l LENGTH] [-p] [-P PORT] [-u USERNAME] ip
+
+    Changes the password of a user on a linux machine to a random string using ssh
+
+    positional arguments:
+        ip           IP of machine to connect to
+
+    optional arguments:
+        -h, --help   show this help message and exit
+        -d           Show debug output
+        -l LENGTH    Length of auto-generated password [12]
+        -p           Prompt for password [otherwise assume it is 'ubuntu']
+        -P PORT      Port to connect to [22]
+        -u USERNAME  Username to connect as [ubuntu]
+
+"""
+
 # Standard python libraries
 import argparse
 import crypt
@@ -35,37 +65,44 @@ else:
 
 # General helped functions
 def throw_error(string,exitcode):
+    """Print a message and exit with a status code"""
     print "[ERROR]: %s, try again with debug mode on (-d)" % string
     sys.exit(exitcode)
 
 def debug_print(message):
+    """Print a message only if th debug flag (-d) is set"""
     if config.debug:
         print "[DEBUG]: %s" % message
 # End helper functions
 
 # Password generation and Encryption
 def choose_random_chars(alphabet,length):
+    """From an alphabet, choose a number of random characters"""
     chars = []
     for i in range(length):
         chars.append(random.choice(alphabet))
     return "".join(chars)
 
 def generate_salt(length):
+    """Generate a random string of length to be used as a SHAS512 salt"""
     salt_alphabet = string.digits + string.ascii_letters + "./"
     salt = choose_random_chars(salt_alphabet,length)
     debug_print("... ... SALT %s" % salt)
     return salt
 
 def generate_password(length):
+    """Generate a random string of length to be used as a password"""
     password_alphabet = string.digits + string.ascii_letters
     password = choose_random_chars(password_alphabet,length)
     debug_print("... ... PASSWORD %s" % password)
     return password
 
 def encrypt_password(password):
+    """Generate the salted password hash using SHA512 with the same options as Ubuntu 12.04"""
     return sha512_crypt.encrypt(password,salt=generate_salt(8),rounds=5000)
 
 def new_password(user):
+    """Output {password => "PLAINTEXT", shadow => "Shadow entry"} dict for later use"""
     debug_print("... Generating password")
     output = {}
     output['password'] = generate_password(config.length)
@@ -76,6 +113,7 @@ def new_password(user):
 
 # SSH connections
 def ssh_connect(password=config.password):
+    """Connect to config.ip as config.user on config.port with a password (defaults to config.password)"""
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     debug_print('... Connecting to %s on port %s with %s:%s' % (config.ip,config.port,config.username,password))
@@ -86,6 +124,7 @@ def ssh_connect(password=config.password):
     return ssh
 
 def ssh_runcommand(session,command):
+    """Given an SSH session, run a command and if debug mode is enabled, show the output"""
     try:
         stdin, stdout, stderr = session.exec_command(command)
     except:
@@ -96,6 +135,7 @@ def ssh_runcommand(session,command):
             debug_print('stderr: %s' % line)
 
 def ssh_changepassword(user):
+    """SSH to to a machine, try to change the password and test for success"""
     passwd = new_password(user)
     command = "sudo sed -i 's;" + user + ":.*;" + passwd['shadow'] + ";g' /etc/shadow"
     ssh_runcommand(ssh_connect(),command)
