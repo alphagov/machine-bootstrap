@@ -22,24 +22,28 @@ Description:
 
 Usage:
 
-    harden [-h] [-d] [-l LENGTH] [-p] [-P PORT] [-u USERNAME] ip
+    harden [-h] [-C] [-d] [-H] [-k AUTHORIZED_KEY] [-l LENGTH] [-p]
+           [-P PORT] [-u USERNAME] ip
 
     Hardens a default Ubuntu VM using SSH and Puppet
 
     positional arguments:
-        ip           IP of machine to connect to
+      ip                    IP of machine to connect to
 
     optional arguments:
-        -h, --help   show this help message and exit
-        -C, --change-password-only
-                     Change password, but do not attempt to run puppet on the machine [False]
-        -d           Show debug output
-        -H, --harden-only
-                     Do not change the password, simply run Puppet to harden the machine [False]
-        -l LENGTH    Length of auto-generated password [12]
-        -p           Prompt for password [otherwise assume it is 'ubuntu']
-        -P PORT      Port to connect to [22]
-        -u USERNAME  Username to connect as [ubuntu]
+      -h, --help            show this help message and exit
+      -C, --change-password-only
+                            Change password, but do not attempt to run puppet on
+                            the machine [False]
+      -d                    Show debug output
+      -H, --harden-only     Do not change the password, simply run Puppet to
+                            harden the machine [False]
+      -k AUTHORIZED_KEY     Supply an authorized_keys entry for this user (quoted
+                            exact line format from .ssh/authorized_keys)
+      -l LENGTH             Length of auto-generated password [12]
+      -p                    Prompt for password [otherwise assume it is 'ubuntu']
+      -P PORT               Port to connect to [22]
+      -u USERNAME           Username to connect as [ubuntu]
 
 """
 
@@ -50,6 +54,7 @@ import getpass
 import random
 import string
 import sys
+from Crypto.PublicKey import RSA
 from contextlib import closing
 # Non-standard python libraries
 try:
@@ -74,6 +79,7 @@ parser.add_argument('ip',help="IP of machine to connect to")
 parser.add_argument('-C','--change-password-only',dest='password_only',action='store_true',default=False,help="Change password, but do not attempt to run puppet on the machine [False]")
 parser.add_argument('-d',dest='debug',action='store_true',default=False,help="Show debug output")
 parser.add_argument('-H','--harden-only',dest='harden_only',action='store_true',default=False,help="Do not change the password, simply run Puppet to harden the machine [False]")
+parser.add_argument('-k',dest='authorized_key',type=str,default="NONE",help="Supply an authorized_keys entry for this user (quoted exact line format from .ssh/authorized_keys)")
 parser.add_argument('-l',dest='length',type=int,default=12,help="Length of auto-generated password [12]")
 parser.add_argument('-p',dest='prompt',action='store_true',default=False,help="Prompt for password [otherwise assume it is 'ubuntu']")
 parser.add_argument('-P',dest='port',type=int,default=22,help="Port to connect to [22]")
@@ -95,6 +101,9 @@ def debug_print(message):
     """Print a message only if th debug flag (-d) is set"""
     if config.debug:
         print "[DEBUG]: %s" % message
+
+def info_print(message):
+    print "[INFO]:  %s" % message
 # End helper functions
 
 # Password generation and Encryption
@@ -180,8 +189,33 @@ def ssh_copyfile(session,sourcefile,destdir):
 
 # End SSH connections
 
+# RSA Key Generation
+def generate_rsa_key():
+    info_print("Creating new SSH key for this machine")
+    key = RSA.generate(2048)
+    private_key = key.exportKey('PEM')
+    public_key = key.exportKey('OpenSSH') + " %s@%s" % (config.username,config.ip)
+    info_print("... New SSH public key (do not need to save)")
+    print ""
+    print public_key
+    print
+    info_print("... New SSH private key (please save to a file)")
+    print ""
+    print private_key
+    print ""
+    return public_key
+
+def setup_key_auth(password,key):
+    info_print("Setting up key-based auth for %s" % config.username)
+    session = ssh_connect(password)
+    ssh_runcommand(session,'test -d ~%s/.ssh || mkdir ~%s/.ssh && chmod 700 ~%s/.ssh' % (config.username,config.username,config.username))
+    ssh_runcommand(session,'echo "%s" > ~%s/.ssh/authorized_keys && chmod 600 ~%s/.ssh/authorized_keys' % (key,config.username,config.username))
+
+# end RSA key generation
+
 # Puppet related tasks
 def apply_puppet(password):
+    info_print("Starting to harden using puppet ...")
     session = ssh_connect(password)
     # Copy the puppet dir from this repo
     ssh_copydir(session,'./puppet','/tmp/')
@@ -195,23 +229,35 @@ def apply_puppet(password):
     ssh_runcommand(session,'cd /tmp/puppet; sudo librarian-puppet install')
     # Run puppet
     ssh_runcommand(session,'sudo puppet apply --modulepath=/tmp/puppet/vendor/modules /tmp/puppet/manifests/site.pp')
-    print "Hardening steps applied to machine via Puppet"
+    info_print("Hardening steps applied to machine via Puppet")
 
 # End puppet related tasks
 
 def main():
-    password = ""
     if config.harden_only and config.password_only:
         throw_error("-H and -C are mutually exclusive. If you want to change the password and harden the machine, remove both options",254)
+
+    password = ""
     if not config.harden_only:
         password = ssh_changepassword(config.username)
-        print "Password for %s@%s is now %s" % (config.username,config.ip,password)
+        info_print("Password for %s@%s is now %s" % (config.username,config.ip,password))
+
     if not config.password_only:
+        # If we changed the password, use the new one
         if password == "":
-            puppet_password = config.password
+            new_password = config.password
         else:
-            puppet_password = password
-        apply_puppet(puppet_password)
+            new_password = password
+
+        # If we have been passed an authorized_keys entry, then use it.
+        if config.authorized_key == "NONE":
+            key = generate_rsa_key()
+        else:
+            key = config.authorized_key
+        setup_key_auth(new_password,key)
+        apply_puppet(new_password)
+    info_print("Hardening script exiting successfully")
+    sys.exit(0)
 
 if __name__ == "__main__":
     main()

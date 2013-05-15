@@ -7,6 +7,20 @@ It currently contains a single script `scripts/harden` which can:
 - Connect to a machine via SSH and apply the puppet manifest in the `puppet` directory
 - A vagrant environment where `harden` can be tested
 
+#Instructions for hardening machines
+
+## Generating a new SSH key automatically and hardening
+
+    ./scripts/harden ip.add.re.ss
+
+## Supplying an SSH public key:
+
+    ./scripts/harden -k 'ssh-rsa LONGKEY comment' ip.add.re.ss
+
+## Other options (only change password or only harden, non-default users/passwords/ports)
+
+    ./scripts/harden -h
+
 #Instructions for development
 
 ## 1. Bring up a development VM.
