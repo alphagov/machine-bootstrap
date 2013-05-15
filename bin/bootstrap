@@ -204,9 +204,9 @@ def configure_machine(password,bootstrap_script=""):
     ssh_runcommand(session,'sudo apt-get -y remove puppet puppet-common facter')
     info_print("Installing puppet from Gems")
     # Install a good version of Puppet
-    ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri puppet')
-    ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri librarian-puppet')
-    ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri facter')
+    ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri --version "3.1.1" puppet ')
+    ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri --version "0.9.9" librarian-puppet')
+    ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri --version "1.7.1" facter')
     # Download our included puppet modules
     info_print("Running librarian-puppet")
     ssh_runcommand(session,'cd /tmp/puppet; sudo librarian-puppet install')
