@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 """
-Title: Change initial password on an Ubuntu VM
+Title:
 License: MIT
 
 Description:
 
     This script presumes that you have a user with passwordless sudo access and
-    you wish to change the password of that user. To avoid password prompting
+    you wish to change the password of that user and apply the puppet manifest
+    in the puppet directory to that machine. To avoid password prompting
     and ever putting the clear-text password on the new VM, the mechanism of
     changing is to generate an Ubuntu shadow file entry and place it into the
     /etc/shadow file via SSH.
@@ -16,11 +17,14 @@ Description:
     a random alphanumeric string of length 12 chars. All of these defaults are
     optional.
 
+    It will then connect to the machine with the new password and perform any
+    configuration via puppet.
+
 Usage:
 
-    changepasswd [-h] [-d] [-l LENGTH] [-p] [-P PORT] [-u USERNAME] ip
+    harden [-h] [-d] [-l LENGTH] [-p] [-P PORT] [-u USERNAME] ip
 
-    Changes the password of a user on a linux machine to a random string using ssh
+    Hardens a default Ubuntu VM using SSH and Puppet
 
     positional arguments:
         ip           IP of machine to connect to
@@ -55,7 +59,7 @@ except:
     sys.exit(255)
 
 # Argument parsing
-parser = argparse.ArgumentParser(description='Changes the password of a user on a linux machine to a random string using ssh')
+parser = argparse.ArgumentParser(description='Hardens a default Ubuntu VM using SSH and Puppet')
 parser.add_argument('ip',help="IP of machine to connect to")
 parser.add_argument('-d',dest='debug',action='store_true',default=False,help="Show debug output")
 parser.add_argument('-l',dest='length',type=int,default=12,help="Length of auto-generated password [12]")
