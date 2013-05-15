@@ -148,13 +148,14 @@ def ssh_connect(password=config.password):
 def ssh_runcommand(session,command):
     """Given an SSH session, run a command and if debug mode is enabled, show the output"""
     try:
+        debug_print('Running command: %s' % command)
         stdin, stdout, stderr = session.exec_command(command)
     except:
         throw_error("Command failed - %s" % command,2)
     for line in stdout.readlines():
-            debug_print('stdout: %s' % line)
+            debug_print('stdout: %s' % line.rstrip())
     for line in stderr.readlines():
-            debug_print('stderr: %s' % line)
+            debug_print('stderr: %s' % line.rstrip())
 
 def ssh_changepassword(user):
     """SSH to to a machine, try to change the password and test for success"""
@@ -169,24 +170,32 @@ def ssh_changepassword(user):
     except:
         throw_error("Could not connect to machine after password change",3)
 
-def ssh_copydir(sourcedir,destdir):
-    ssh_client = ssh_connect()
-    with closing(scpclient.WriteDir(ssh_client.get_transport(), destdir)) as scp:
+def ssh_copydir(session,sourcedir,destdir):
+    with closing(scpclient.WriteDir(session.get_transport(), destdir)) as scp:
         scp.send_dir(sourcedir, preserve_times=True)
 
-def ssh_copyfile(sourcefile,destdir):
-    ssh_client = ssh_connect()
-    with closing(scpclient.Write(ssh_client.get_transport(),destdir)) as scp:
+def ssh_copyfile(session,sourcefile,destdir):
+    with closing(scpclient.Write(session.get_transport(),destdir)) as scp:
         scp.send_file(sourcefile, preserve_times=True)
 
 # End SSH connections
 
 # Puppet related tasks
 def apply_puppet():
-    ssh_copydir('./puppet','/tmp/')
-    ssh_copyfile('Puppetfile','/tmp/puppet/')
-    ssh_copyfile('Puppetfile.lock','/tmp/puppet/')
-    print "This is where we would install and run puppet"
+    session = ssh_connect()
+    # Copy the puppet dir from this repo
+    ssh_copydir(session,'./puppet','/tmp/')
+    # Puppet package is 2.7.11, we need >2.7.13 so remove it
+    ssh_runcommand(session,'sudo apt-get -y remove puppet puppet-common facter')
+    # Install a good version of Puppet
+    ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri puppet')
+    ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri librarian-puppet')
+    ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri facter')
+    # Download our included puppet modules
+    ssh_runcommand(session,'cd /tmp/puppet; sudo librarian-puppet install')
+    # Run puppet
+    ssh_runcommand(session,'sudo puppet apply --modulepath=/tmp/puppet/vendor/modules /tmp/puppet/manifests/site.pp')
+
 # End puppet related tasks
 
 def main():
