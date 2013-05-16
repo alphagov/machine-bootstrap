@@ -13,11 +13,11 @@ It currently contains a single script `bin/bootstrap` which can:
 Generating a new SSH key automatically and hardening for a machine at
 IP address 192.0.2.32:
 
-    ./bin/bootstrap ip.add.re.ss
+    ./bin/bootstrap 192.0.2.32
 
 Supplying an SSH public key:
 
-    ./bin/bootstrap -k 'ssh-rsa LONGKEY comment' ip.add.re.ss
+    ./bin/bootstrap -k 'ssh-rsa LONGKEY comment' 192.0.2.32
 
 To list other options, view the builtin help:
 
