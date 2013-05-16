@@ -1,4 +1,4 @@
-# This manifest is solely for inital provisioning in Vagrant. Real changes should be in site.pp
+# This manifest is solely for initial provisioning in Vagrant. Real changes should be in site.pp
 node default {
   file { '/home/vagrant/.hushlogin':
     owner   => 'vagrant',
@@ -8,7 +8,7 @@ node default {
   exec { 'apt-get-update':
     command => '/usr/bin/apt-get update || true',
   }
-  package { 'language-pack-en': 
+  package { 'language-pack-en':
     ensure  => installed,
     require => Exec['apt-get-update']
   }
