@@ -52,7 +52,7 @@ def parse_config():
     parser.add_argument('-l',dest='length',type=int,default=12,help="Length of auto-generated password [12]")
     parser.add_argument('-p',dest='prompt',action='store_true',default=False,help="Prompt for password [otherwise assume it is 'ubuntu']")
     parser.add_argument('-P',dest='port',type=int,default=22,help="Port to connect to [22]")
-    parser.add_argument('-s',dest='bootstrap_script',type=str,default="",help="Path to optional script to run after puppet configuration")
+    parser.add_argument('-s',dest='bootstrap_script',type=str,default=None,help="Path to optional script to run after puppet configuration")
     parser.add_argument('-u',dest='username',default='ubuntu',help="Username to connect as [ubuntu]")
     config = parser.parse_args()
     if config.prompt:
@@ -197,7 +197,7 @@ def configure_machine(session,bootstrap_script):
     # Run puppet
     log.info("Applying puppet config")
     ssh_runcommand(session,'sudo puppet apply --modulepath=/tmp/puppet/vendor/modules /tmp/puppet/manifests/site.pp')
-    if bootstrap_script != "":
+    if bootstrap_script:
         log.info("Running optional bootstrap script - %s" % bootstrap_script)
         ssh_copyfile(session,bootstrap_script,'~/provisioner.script')
         ssh_runcommand(session,'chmod 755 ~/provisioner.script')
