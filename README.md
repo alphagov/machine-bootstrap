@@ -38,7 +38,6 @@ Run the following commands:
 
 ```sh
     $ bundle
-    $ bundle exec rake       # creates Vagrantfile.local with random IP for your VM
     $ bundle exec vagrant up # spin up VM
 ```
 
@@ -83,11 +82,3 @@ SSH will listen on a random port on localhost (as set by Vagrant).
 
     user@host$ vagrant up && vagrant ssh
     vagrant@vm$ sudo password ubuntu
-
-# Full list of Rake commands
-
-```
-rake config            # Create Vagrantfile.local
-```
-From within the repository, you can also use vagrant commands such as `vagrant up`, `vagrant halt`
-and `vagrant provision` if you wish.

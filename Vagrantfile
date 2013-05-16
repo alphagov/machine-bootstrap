@@ -12,9 +12,6 @@ Vagrant::Config.run do |config|
   config.vm.customize        ['modifyvm', :id, '--cpus', 1]
   config.vm.customize        ['modifyvm', :id, '--name', 'ubuntu-1204-bootstrap-dev']
   config.vm.host_name      = 'vm.bootstrap.dev'
-  if File.exist? 'Vagrantfile.local'
-    instance_eval File.read('Vagrantfile.local'), 'Vagrantfile.local'
-  end
   config.vm.provision :puppet do |puppet|
     puppet.manifests_path  = "puppet/manifests"
     puppet.manifest_file   = "vagrant.pp"
