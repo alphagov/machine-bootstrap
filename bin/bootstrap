@@ -135,10 +135,12 @@ def ssh_changepassword(length, user, current_password, ip, port):
     """SSH to to a machine, try to change the password and test for success"""
     passwd = new_password(length=length, user=user)
     command = "sudo sed -i 's;" + user + ":.*;" + passwd['shadow'] + ";g' /etc/shadow"
-    ssh_runcommand(ssh_connect(username=user,password=current_password,ip=ip,port=port),command)
+    with closing(ssh_connect(username=user,password=current_password,ip=ip,port=port)) as session:
+        ssh_runcommand(session,command)
     try:
         log.debug("... Testing new password")
-        ssh_runcommand(ssh_connect(username=user,password=passwd['password'],ip=ip,port=port),'uname -a')
+        with closing(ssh_connect(username=user,password=passwd['password'],ip=ip,port=port)) as session:
+            ssh_runcommand(session,'uname -a')
         return passwd['password']
     except:
         throw_error("Could not connect to machine after password change",3)
@@ -171,38 +173,38 @@ def generate_rsa_key(username, ip):
 
 def setup_key_auth(username,password,key,ip,port):
     log.info("Setting up key-based auth for %s" % username)
-    session = ssh_connect(username=username,password=password,ip=ip,port=port)
-    ssh_runcommand(session,'test -d ~%s/.ssh || mkdir ~%s/.ssh && chmod 700 ~%s/.ssh' % (username,username,username))
-    ssh_runcommand(session,'echo "%s" > ~%s/.ssh/authorized_keys && chmod 600 ~%s/.ssh/authorized_keys' % (key,username,username))
+    with closing(ssh_connect(username=username,password=password,ip=ip,port=port)) as session:
+        ssh_runcommand(session,'test -d ~%s/.ssh || mkdir ~%s/.ssh && chmod 700 ~%s/.ssh' % (username,username,username))
+        ssh_runcommand(session,'echo "%s" > ~%s/.ssh/authorized_keys && chmod 600 ~%s/.ssh/authorized_keys' % (key,username,username))
 
 # end RSA key generation
 
 # Machine configuration related tasks
 def configure_machine(username,password,bootstrap_script,ip,port):
     log.info("Copying up the puppet directory")
-    session = ssh_connect(username=username,password=password,ip=ip,port=port)
-    # Copy the puppet dir from this repo
-    ssh_copydir(session,'./puppet','/tmp/')
-    log.info("Removing old puppet package")
-    # Puppet package is 2.7.11, we need >2.7.13 so remove it
-    ssh_runcommand(session,'sudo apt-get -y remove puppet puppet-common facter')
-    log.info("Installing puppet from Gems")
-    # Install a good version of Puppet
-    ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri --version "3.1.1" puppet ')
-    ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri --version "0.9.9" librarian-puppet')
-    ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri --version "1.7.1" facter')
-    # Download our included puppet modules
-    log.info("Running librarian-puppet")
-    ssh_runcommand(session,'cd /tmp/puppet; sudo librarian-puppet install')
-    # Run puppet
-    log.info("Applying puppet config")
-    ssh_runcommand(session,'sudo puppet apply --modulepath=/tmp/puppet/vendor/modules /tmp/puppet/manifests/site.pp')
-    if bootstrap_script != "":
-        log.info("Running optional bootstrap script - %s" % bootstrap_script)
-        ssh_copyfile(session,bootstrap_script,'~/provisioner.script')
-        ssh_runcommand(session,'chmod 755 ~/provisioner.script')
-        ssh_runcommand(session,'sudo ~/provisioner.script')
-        log.info("Optional bootstrap script complete")
+    with closing(ssh_connect(username=username,password=password,ip=ip,port=port)) as session:
+        # Copy the puppet dir from this repo
+        ssh_copydir(session,'./puppet','/tmp/')
+        log.info("Removing old puppet package")
+        # Puppet package is 2.7.11, we need >2.7.13 so remove it
+        ssh_runcommand(session,'sudo apt-get -y remove puppet puppet-common facter')
+        log.info("Installing puppet from Gems")
+        # Install a good version of Puppet
+        ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri --version "3.1.1" puppet ')
+        ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri --version "0.9.9" librarian-puppet')
+        ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri --version "1.7.1" facter')
+        # Download our included puppet modules
+        log.info("Running librarian-puppet")
+        ssh_runcommand(session,'cd /tmp/puppet; sudo librarian-puppet install')
+        # Run puppet
+        log.info("Applying puppet config")
+        ssh_runcommand(session,'sudo puppet apply --modulepath=/tmp/puppet/vendor/modules /tmp/puppet/manifests/site.pp')
+        if bootstrap_script != "":
+            log.info("Running optional bootstrap script - %s" % bootstrap_script)
+            ssh_copyfile(session,bootstrap_script,'~/provisioner.script')
+            ssh_runcommand(session,'chmod 755 ~/provisioner.script')
+            ssh_runcommand(session,'sudo ~/provisioner.script')
+            log.info("Optional bootstrap script complete")
 
 # End machine configuration related tasks
 
