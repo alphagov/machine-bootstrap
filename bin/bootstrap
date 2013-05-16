@@ -106,7 +106,7 @@ def new_password(user, length):
 # End password generation and encryption
 
 # SSH connections
-def ssh_connect(password, ip=config.ip, username=config.username, port=config.port):
+def ssh_connect(password, ip, username, port):
     """Connect to ip as username on port with password"""
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -129,14 +129,14 @@ def ssh_runcommand(session,command):
     for line in stderr.readlines():
             log.debug('stderr: %s' % line.rstrip())
 
-def ssh_changepassword(user,length=config.length,old_password=config.password):
+def ssh_changepassword(user,length=config.length,old_password=config.password, machine={'ip':config.ip,'username':config.username,'port':config.port}):
     """SSH to to a machine, try to change the password and test for success"""
     passwd = new_password(user,length)
     command = "sudo sed -i 's;" + user + ":.*;" + passwd['shadow'] + ";g' /etc/shadow"
-    ssh_runcommand(ssh_connect(old_password),command)
+    ssh_runcommand(ssh_connect(old_password, **machine),command)
     try:
         log.debug("... Testing new password")
-        ssh_runcommand(ssh_connect(passwd['password']),'uname -a')
+        ssh_runcommand(ssh_connect(passwd['password'],**machine),'uname -a')
         return passwd['password']
     except:
         throw_error("Could not connect to machine after password change",3)
@@ -167,18 +167,19 @@ def generate_rsa_key(username=config.username, ip=config.ip):
     print ""
     return public_key
 
-def setup_key_auth(password,key,username=config.username):
+def setup_key_auth(password,key,machine={'ip':config.ip,'username':config.username,'port':config.port}):
+    username = machine['username']
     log.info("Setting up key-based auth for %s" % username)
-    session = ssh_connect(password)
+    session = ssh_connect(password, **machine)
     ssh_runcommand(session,'test -d ~%s/.ssh || mkdir ~%s/.ssh && chmod 700 ~%s/.ssh' % (username,username,username))
     ssh_runcommand(session,'echo "%s" > ~%s/.ssh/authorized_keys && chmod 600 ~%s/.ssh/authorized_keys' % (key,username,username))
 
 # end RSA key generation
 
 # Machine configuration related tasks
-def configure_machine(password,bootstrap_script=""):
+def configure_machine(password,bootstrap_script="",machine={'ip':config.ip,'username':config.username,'port':config.port}):
     log.info("Copying up the puppet directory")
-    session = ssh_connect(password)
+    session = ssh_connect(password,**machine)
     # Copy the puppet dir from this repo
     ssh_copydir(session,'./puppet','/tmp/')
     log.info("Removing old puppet package")
