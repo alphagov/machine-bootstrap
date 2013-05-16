@@ -137,7 +137,6 @@ def ssh_runcommand(session,command):
 def ssh_changepassword(user):
     """SSH to to a machine, try to change the password and test for success"""
     passwd = new_password(user)
-    global config
     command = "sudo sed -i 's;" + user + ":.*;" + passwd['shadow'] + ";g' /etc/shadow"
     ssh_runcommand(ssh_connect(),command)
     try:
