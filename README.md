@@ -27,11 +27,13 @@ To list other options, view the builtin help:
 
 ## 1. Bring up a development VM.
 
-Within the checked out copy of this repository, run the `rake` command. This will:
+Run the following commands:
 
-1. Install the relevant Ruby Gems using bundler.
-2. Create Vagrantfile.local which will set a random IP for your VM.
-3. Download an Ubuntu Image and create a VM (This will include running Puppet).
+```sh
+    $ bundle
+    $ bundle exec rake       # creates Vagrantfile.local with random IP for your VM
+    $ bundle exec vagrant up # spin up VM
+```
 
 At this point you will have a local VM running, with the username 'ubuntu' and the password 'ubuntu'
 with SSH listening on a random port (see output of vagrant).
