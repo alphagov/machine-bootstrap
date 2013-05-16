@@ -97,7 +97,7 @@ def encrypt_password(password):
     """Generate the salted password hash using SHA512 with the same options as Ubuntu 12.04"""
     return sha512_crypt.encrypt(password,salt=generate_salt(8),rounds=5000)
 
-def new_password(user, length):
+def new_password(length, user):
     """Output {password => "PLAINTEXT", shadow => "Shadow entry"} dict for later use"""
     log.debug("... Generating password")
     output = {}
@@ -108,13 +108,13 @@ def new_password(user, length):
 # End password generation and encryption
 
 # SSH connections
-def ssh_connect(password, ip, username, port):
+def ssh_connect(username, password, ip, port):
     """Connect to ip as username on port with password"""
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     log.debug('... Connecting to %s on port %s with %s:%s' % (ip,port,username,password))
     try:
-        ssh.connect(ip,username=username,password=password,port=port)
+        ssh.connect(username=username,password=password,hostname=ip,port=port)
     except:
         throw_error("Could not connect to machine",1)
     return ssh
@@ -133,7 +133,7 @@ def ssh_runcommand(session,command):
 
 def ssh_changepassword(length, user, current_password, ip, port):
     """SSH to to a machine, try to change the password and test for success"""
-    passwd = new_password(user,length)
+    passwd = new_password(length=length, user=user)
     command = "sudo sed -i 's;" + user + ":.*;" + passwd['shadow'] + ";g' /etc/shadow"
     ssh_runcommand(ssh_connect(username=user,password=current_password,ip=ip,port=port),command)
     try:
