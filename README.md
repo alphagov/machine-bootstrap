@@ -74,8 +74,8 @@ SSH will listen on a random port on localhost (as set by Vagrant).
 
 - If you mess up the password, you can reset it either by destroying and recreating the VM or:
 
-    MAC> vagrant up %% vagrant ssh
-    VM>  sudo password ubuntu
+    user@host$ vagrant up && vagrant ssh
+    vagrant@vm$ sudo password ubuntu
 
 # Full list of Rake commands
 
