@@ -129,14 +129,14 @@ def ssh_runcommand(session,command):
     for line in stderr.readlines():
             log.debug('stderr: %s' % line.rstrip())
 
-def ssh_changepassword(user,length=config.length,old_password=config.password, machine={'ip':config.ip,'username':config.username,'port':config.port}):
+def ssh_changepassword(length, user, current_password, ip, port):
     """SSH to to a machine, try to change the password and test for success"""
     passwd = new_password(user,length)
     command = "sudo sed -i 's;" + user + ":.*;" + passwd['shadow'] + ";g' /etc/shadow"
-    ssh_runcommand(ssh_connect(old_password, **machine),command)
+    ssh_runcommand(ssh_connect(username=user,password=current_password,ip=ip,port=port),command)
     try:
         log.debug("... Testing new password")
-        ssh_runcommand(ssh_connect(passwd['password'],**machine),'uname -a')
+        ssh_runcommand(ssh_connect(username=user,password=passwd['password'],ip=ip,port=port),'uname -a')
         return passwd['password']
     except:
         throw_error("Could not connect to machine after password change",3)
@@ -152,7 +152,7 @@ def ssh_copyfile(session,sourcefile,destdir):
 # End SSH connections
 
 # RSA Key Generation
-def generate_rsa_key(username=config.username, ip=config.ip):
+def generate_rsa_key(username, ip):
     log.info("Creating new SSH key for this machine")
     key = RSA.generate(2048)
     private_key = key.exportKey('PEM')
@@ -214,8 +214,9 @@ def main():
         throw_error("-H and -C are mutually exclusive. If you want to change the password and harden the machine, remove both options",254)
 
     password = ""
+    machine = {'ip':config.ip, 'port':config.port}
     if not config.harden_only:
-        password = ssh_changepassword(config.username)
+        password = ssh_changepassword(user=config.username,current_password=config.password,length=config.length,**machine)
         log.info("Password for %s@%s is now %s" % (config.username,config.ip,password))
 
     if not config.password_only:
@@ -227,7 +228,7 @@ def main():
 
         # If we have been passed an authorized_keys entry, then use it.
         if config.authorized_key == "NONE":
-            key = generate_rsa_key()
+            key = generate_rsa_key(username=config.username,ip=config.ip)
         else:
             key = config.authorized_key
         setup_key_auth(new_password,key)
