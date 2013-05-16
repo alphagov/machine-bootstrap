@@ -42,22 +42,24 @@ import scpclient
 from passlib.hash import sha512_crypt
 
 # Argument parsing
-parser = argparse.ArgumentParser(description='Bootstraps a default Ubuntu VM using SSH and Puppet')
-parser.add_argument('ip',help="IP of machine to connect to")
-parser.add_argument('-C','--change-password-only',dest='password_only',action='store_true',default=False,help="Change password, but do not attempt to run puppet on the machine [False]")
-parser.add_argument('-d',dest='debug',action='store_true',default=False,help="Show debug output")
-parser.add_argument('-H','--harden-only',dest='harden_only',action='store_true',default=False,help="Do not change the password, simply run Puppet to harden the machine [False]")
-parser.add_argument('-k',dest='authorized_key',type=str,default="NONE",help="Supply an authorized_keys entry for this user (quoted exact line format from .ssh/authorized_keys)")
-parser.add_argument('-l',dest='length',type=int,default=12,help="Length of auto-generated password [12]")
-parser.add_argument('-p',dest='prompt',action='store_true',default=False,help="Prompt for password [otherwise assume it is 'ubuntu']")
-parser.add_argument('-P',dest='port',type=int,default=22,help="Port to connect to [22]")
-parser.add_argument('-s',dest='bootstrap_script',type=str,default="",help="Path to optional script to run after puppet configuration")
-parser.add_argument('-u',dest='username',default='ubuntu',help="Username to connect as [ubuntu]")
-config = parser.parse_args()
-if config.prompt:
-    config.password = getpass.getpass('Password for %s@%s: ' % (config.username,config.ip))
-else:
-    config.password = 'ubuntu'
+def parse_config():
+    parser = argparse.ArgumentParser(description='Bootstraps a default Ubuntu VM using SSH and Puppet')
+    parser.add_argument('ip',help="IP of machine to connect to")
+    parser.add_argument('-C','--change-password-only',dest='password_only',action='store_true',default=False,help="Change password, but do not attempt to run puppet on the machine [False]")
+    parser.add_argument('-d',dest='debug',action='store_true',default=False,help="Show debug output")
+    parser.add_argument('-H','--harden-only',dest='harden_only',action='store_true',default=False,help="Do not change the password, simply run Puppet to harden the machine [False]")
+    parser.add_argument('-k',dest='authorized_key',type=str,default="NONE",help="Supply an authorized_keys entry for this user (quoted exact line format from .ssh/authorized_keys)")
+    parser.add_argument('-l',dest='length',type=int,default=12,help="Length of auto-generated password [12]")
+    parser.add_argument('-p',dest='prompt',action='store_true',default=False,help="Prompt for password [otherwise assume it is 'ubuntu']")
+    parser.add_argument('-P',dest='port',type=int,default=22,help="Port to connect to [22]")
+    parser.add_argument('-s',dest='bootstrap_script',type=str,default="",help="Path to optional script to run after puppet configuration")
+    parser.add_argument('-u',dest='username',default='ubuntu',help="Username to connect as [ubuntu]")
+    config = parser.parse_args()
+    if config.prompt:
+        config.password = getpass.getpass('Password for %s@%s: ' % (config.username,config.ip))
+    else:
+        config.password = 'ubuntu'
+    return config
 # End argument parsing
 
 log = logging.getLogger(__name__)
@@ -167,19 +169,18 @@ def generate_rsa_key(username, ip):
     print ""
     return public_key
 
-def setup_key_auth(password,key,machine={'ip':config.ip,'username':config.username,'port':config.port}):
-    username = machine['username']
+def setup_key_auth(username,password,key,ip,port):
     log.info("Setting up key-based auth for %s" % username)
-    session = ssh_connect(password, **machine)
+    session = ssh_connect(username=username,password=password,ip=ip,port=port)
     ssh_runcommand(session,'test -d ~%s/.ssh || mkdir ~%s/.ssh && chmod 700 ~%s/.ssh' % (username,username,username))
     ssh_runcommand(session,'echo "%s" > ~%s/.ssh/authorized_keys && chmod 600 ~%s/.ssh/authorized_keys' % (key,username,username))
 
 # end RSA key generation
 
 # Machine configuration related tasks
-def configure_machine(password,bootstrap_script="",machine={'ip':config.ip,'username':config.username,'port':config.port}):
+def configure_machine(username,password,bootstrap_script,ip,port):
     log.info("Copying up the puppet directory")
-    session = ssh_connect(password,**machine)
+    session = ssh_connect(username=username,password=password,ip=ip,port=port)
     # Copy the puppet dir from this repo
     ssh_copydir(session,'./puppet','/tmp/')
     log.info("Removing old puppet package")
@@ -206,6 +207,7 @@ def configure_machine(password,bootstrap_script="",machine={'ip':config.ip,'user
 # End machine configuration related tasks
 
 def main():
+    config = parse_config()
     _log_level = logging.INFO
     if config.debug:
         _log_level = logging.DEBUG
@@ -231,8 +233,8 @@ def main():
             key = generate_rsa_key(username=config.username,ip=config.ip)
         else:
             key = config.authorized_key
-        setup_key_auth(new_password,key)
-        configure_machine(new_password,config.bootstrap_script)
+        setup_key_auth(username=config.username,password=new_password,key=key,**machine)
+        configure_machine(username=config.username,password=new_password,bootstrap_script=config.bootstrap_script,**machine)
     log.info("Bootstrap script exiting successfully")
     sys.exit(0)
 
