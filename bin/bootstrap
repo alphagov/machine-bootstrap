@@ -95,24 +95,24 @@ def encrypt_password(password):
     """Generate the salted password hash using SHA512 with the same options as Ubuntu 12.04"""
     return sha512_crypt.encrypt(password,salt=generate_salt(8),rounds=5000)
 
-def new_password(user):
+def new_password(user, length):
     """Output {password => "PLAINTEXT", shadow => "Shadow entry"} dict for later use"""
     log.debug("... Generating password")
     output = {}
-    output['password'] = generate_password(config.length)
+    output['password'] = generate_password(length)
     output['shadow'] = "%s:%s:::::::" % (user, encrypt_password(output['password']))
     log.debug("... ... SHADOW %s " % output['shadow'])
     return output
 # End password generation and encryption
 
 # SSH connections
-def ssh_connect(password=config.password):
-    """Connect to config.ip as config.username on config.port with a password (defaults to config.password)"""
+def ssh_connect(password, ip=config.ip, username=config.username, port=config.port):
+    """Connect to ip as username on port with password"""
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    log.debug('... Connecting to %s on port %s with %s:%s' % (config.ip,config.port,config.username,password))
+    log.debug('... Connecting to %s on port %s with %s:%s' % (ip,port,username,password))
     try:
-        ssh.connect(config.ip,username=config.username,password=password,port=config.port)
+        ssh.connect(ip,username=username,password=password,port=port)
     except:
         throw_error("Could not connect to machine",1)
     return ssh
@@ -129,11 +129,11 @@ def ssh_runcommand(session,command):
     for line in stderr.readlines():
             log.debug('stderr: %s' % line.rstrip())
 
-def ssh_changepassword(user):
+def ssh_changepassword(user,length=config.length,old_password=config.password):
     """SSH to to a machine, try to change the password and test for success"""
-    passwd = new_password(user)
+    passwd = new_password(user,length)
     command = "sudo sed -i 's;" + user + ":.*;" + passwd['shadow'] + ";g' /etc/shadow"
-    ssh_runcommand(ssh_connect(),command)
+    ssh_runcommand(ssh_connect(old_password),command)
     try:
         log.debug("... Testing new password")
         ssh_runcommand(ssh_connect(passwd['password']),'uname -a')
@@ -152,11 +152,11 @@ def ssh_copyfile(session,sourcefile,destdir):
 # End SSH connections
 
 # RSA Key Generation
-def generate_rsa_key():
+def generate_rsa_key(username=config.username, ip=config.ip):
     log.info("Creating new SSH key for this machine")
     key = RSA.generate(2048)
     private_key = key.exportKey('PEM')
-    public_key = key.exportKey('OpenSSH') + " %s@%s" % (config.username,config.ip)
+    public_key = key.exportKey('OpenSSH') + " %s@%s" % (username,ip)
     log.info("... New SSH public key (do not need to save)")
     print ""
     print public_key
@@ -167,11 +167,11 @@ def generate_rsa_key():
     print ""
     return public_key
 
-def setup_key_auth(password,key):
-    log.info("Setting up key-based auth for %s" % config.username)
+def setup_key_auth(password,key,username=config.username):
+    log.info("Setting up key-based auth for %s" % username)
     session = ssh_connect(password)
-    ssh_runcommand(session,'test -d ~%s/.ssh || mkdir ~%s/.ssh && chmod 700 ~%s/.ssh' % (config.username,config.username,config.username))
-    ssh_runcommand(session,'echo "%s" > ~%s/.ssh/authorized_keys && chmod 600 ~%s/.ssh/authorized_keys' % (key,config.username,config.username))
+    ssh_runcommand(session,'test -d ~%s/.ssh || mkdir ~%s/.ssh && chmod 700 ~%s/.ssh' % (username,username,username))
+    ssh_runcommand(session,'echo "%s" > ~%s/.ssh/authorized_keys && chmod 600 ~%s/.ssh/authorized_keys' % (key,username,username))
 
 # end RSA key generation
 
