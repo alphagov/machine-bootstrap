@@ -1,4 +1,4 @@
-#Overview
+# Overview
 
 This repository contains methods for bootstrapping blank machines.
 
@@ -8,21 +8,22 @@ It currently contains a single script `bin/bootstrap` which can:
 - Run an optional bootstrap script (any lang available on destination) after initial puppet run
 - A vagrant environment where `bootstrap` can be tested
 
-#Instructions for hardening machines
+# Instructions for hardening machines
 
-## Generating a new SSH key automatically and hardening
+Generating a new SSH key automatically and hardening for a machine at
+IP address 192.0.2.32:
 
     ./bin/bootstrap ip.add.re.ss
 
-## Supplying an SSH public key:
+Supplying an SSH public key:
 
     ./bin/bootstrap -k 'ssh-rsa LONGKEY comment' ip.add.re.ss
 
-## Other options (only change password or only harden, non-default users/passwords/ports)
+To list other options, view the builtin help:
 
     ./bin/bootstrap -h
 
-#Instructions for development
+# Instructions for development
 
 ## 1. Bring up a development VM.
 
@@ -74,7 +75,7 @@ SSH will listen on a random port on localhost (as set by Vagrant).
     MAC> vagrant up %% vagrant ssh
     VM>  sudo password ubuntu
 
-#Full list of Rake commands
+# Full list of Rake commands
 
 ```
 rake config            # Create Vagrantfile.local
