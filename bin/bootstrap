@@ -36,21 +36,9 @@ import sys
 from Crypto.PublicKey import RSA
 from contextlib import closing
 # Non-standard python libraries
-try:
-    import paramiko
-except:
-    print "Paramiko not installed, please run 'pip install paramiko'"
-    sys.exit(255)
-try:
-    import scpclient
-except:
-    print "Scpclient not installed, please run 'pip install scpclient'"
-    sys.exit(255)
-try:
-    from passlib.hash import sha512_crypt
-except:
-    print "PassLib not installed, please run 'pip install passlib'"
-    sys.exit(255)
+import paramiko
+import scpclient
+from passlib.hash import sha512_crypt
 
 # Argument parsing
 parser = argparse.ArgumentParser(description='Bootstraps a default Ubuntu VM using SSH and Puppet')
