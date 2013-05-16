@@ -8,6 +8,13 @@ It currently contains a single script `bin/bootstrap` which can:
 - Run an optional bootstrap script (any lang available on destination) after initial puppet run
 - A vagrant environment where `bootstrap` can be tested
 
+# Installation/setup
+
+Once you have cloned the repository, install the necessary python
+dependencies from requirements.txt:
+
+    pip install -r requirements.txt
+
 # Instructions for hardening machines
 
 Generating a new SSH key automatically and hardening for a machine at
