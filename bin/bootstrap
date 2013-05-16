@@ -30,6 +30,7 @@ Usage:
 import argparse
 import crypt
 import getpass
+import logging
 import random
 import string
 import sys
@@ -59,19 +60,17 @@ else:
     config.password = 'ubuntu'
 # End argument parsing
 
+_log_level = logging.INFO
+if config.debug:
+    _log_level = logging.DEBUG
+logging.basicConfig(format='%(levelname)s: %(message)s', level=_log_level)
+log = logging.getLogger(__name__)
+
 # General helper functions
 def throw_error(string,exitcode):
     """Print a message and exit with a status code"""
-    print "[ERROR]: %s, try again with debug mode on (-d)" % string
+    log.error ("%s, try again with debug mode on (-d)" % string)
     sys.exit(exitcode)
-
-def debug_print(message):
-    """Print a message only if th debug flag (-d) is set"""
-    if config.debug:
-        print "[DEBUG]: %s" % message
-
-def info_print(message):
-    print "[INFO]:  %s" % message
 # End helper functions
 
 # Password generation and Encryption
@@ -86,14 +85,14 @@ def generate_salt(length):
     """Generate a random string of length to be used as a SHAS512 salt"""
     salt_alphabet = string.digits + string.ascii_letters + "./"
     salt = choose_random_chars(salt_alphabet,length)
-    debug_print("... ... SALT %s" % salt)
+    log.debug("... ... SALT %s" % salt)
     return salt
 
 def generate_password(length):
     """Generate a random string of length to be used as a password"""
     password_alphabet = string.digits + string.ascii_letters
     password = choose_random_chars(password_alphabet,length)
-    debug_print("... ... PASSWORD %s" % password)
+    log.debug("... ... PASSWORD %s" % password)
     return password
 
 def encrypt_password(password):
@@ -102,11 +101,11 @@ def encrypt_password(password):
 
 def new_password(user):
     """Output {password => "PLAINTEXT", shadow => "Shadow entry"} dict for later use"""
-    debug_print("... Generating password")
+    log.debug("... Generating password")
     output = {}
     output['password'] = generate_password(config.length)
     output['shadow'] = "%s:%s:::::::" % (user, encrypt_password(output['password']))
-    debug_print("... ... SHADOW %s " % output['shadow'])
+    log.debug("... ... SHADOW %s " % output['shadow'])
     return output
 # End password generation and encryption
 
@@ -115,7 +114,7 @@ def ssh_connect(password=config.password):
     """Connect to config.ip as config.username on config.port with a password (defaults to config.password)"""
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    debug_print('... Connecting to %s on port %s with %s:%s' % (config.ip,config.port,config.username,password))
+    log.debug('... Connecting to %s on port %s with %s:%s' % (config.ip,config.port,config.username,password))
     try:
         ssh.connect(config.ip,username=config.username,password=password,port=config.port)
     except:
@@ -125,14 +124,14 @@ def ssh_connect(password=config.password):
 def ssh_runcommand(session,command):
     """Given an SSH session, run a command and if debug mode is enabled, show the output"""
     try:
-        debug_print('Running command: %s' % command)
+        log.debug('Running command: %s' % command)
         stdin, stdout, stderr = session.exec_command(command)
     except:
         throw_error("Command failed - %s" % command,2)
     for line in stdout.readlines():
-            debug_print('stdout: %s' % line.rstrip())
+            log.debug('stdout: %s' % line.rstrip())
     for line in stderr.readlines():
-            debug_print('stderr: %s' % line.rstrip())
+            log.debug('stderr: %s' % line.rstrip())
 
 def ssh_changepassword(user):
     """SSH to to a machine, try to change the password and test for success"""
@@ -140,7 +139,7 @@ def ssh_changepassword(user):
     command = "sudo sed -i 's;" + user + ":.*;" + passwd['shadow'] + ";g' /etc/shadow"
     ssh_runcommand(ssh_connect(),command)
     try:
-        debug_print("... Testing new password")
+        log.debug("... Testing new password")
         ssh_runcommand(ssh_connect(passwd['password']),'uname -a')
         return passwd['password']
     except:
@@ -158,22 +157,22 @@ def ssh_copyfile(session,sourcefile,destdir):
 
 # RSA Key Generation
 def generate_rsa_key():
-    info_print("Creating new SSH key for this machine")
+    log.info("Creating new SSH key for this machine")
     key = RSA.generate(2048)
     private_key = key.exportKey('PEM')
     public_key = key.exportKey('OpenSSH') + " %s@%s" % (config.username,config.ip)
-    info_print("... New SSH public key (do not need to save)")
+    log.info("... New SSH public key (do not need to save)")
     print ""
     print public_key
     print
-    info_print("... New SSH private key (please save to a file)")
+    log.info("... New SSH private key (please save to a file)")
     print ""
     print private_key
     print ""
     return public_key
 
 def setup_key_auth(password,key):
-    info_print("Setting up key-based auth for %s" % config.username)
+    log.info("Setting up key-based auth for %s" % config.username)
     session = ssh_connect(password)
     ssh_runcommand(session,'test -d ~%s/.ssh || mkdir ~%s/.ssh && chmod 700 ~%s/.ssh' % (config.username,config.username,config.username))
     ssh_runcommand(session,'echo "%s" > ~%s/.ssh/authorized_keys && chmod 600 ~%s/.ssh/authorized_keys' % (key,config.username,config.username))
@@ -182,30 +181,30 @@ def setup_key_auth(password,key):
 
 # Machine configuration related tasks
 def configure_machine(password,bootstrap_script=""):
-    info_print("Copying up the puppet directory")
+    log.info("Copying up the puppet directory")
     session = ssh_connect(password)
     # Copy the puppet dir from this repo
     ssh_copydir(session,'./puppet','/tmp/')
-    info_print("Removing old puppet package")
+    log.info("Removing old puppet package")
     # Puppet package is 2.7.11, we need >2.7.13 so remove it
     ssh_runcommand(session,'sudo apt-get -y remove puppet puppet-common facter')
-    info_print("Installing puppet from Gems")
+    log.info("Installing puppet from Gems")
     # Install a good version of Puppet
     ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri --version "3.1.1" puppet ')
     ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri --version "0.9.9" librarian-puppet')
     ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri --version "1.7.1" facter')
     # Download our included puppet modules
-    info_print("Running librarian-puppet")
+    log.info("Running librarian-puppet")
     ssh_runcommand(session,'cd /tmp/puppet; sudo librarian-puppet install')
     # Run puppet
-    info_print("Applying puppet config")
+    log.info("Applying puppet config")
     ssh_runcommand(session,'sudo puppet apply --modulepath=/tmp/puppet/vendor/modules /tmp/puppet/manifests/site.pp')
     if bootstrap_script != "":
-        info_print("Running optional bootstrap script - %s" % bootstrap_script)
+        log.info("Running optional bootstrap script - %s" % bootstrap_script)
         ssh_copyfile(session,bootstrap_script,'~/provisioner.script')
         ssh_runcommand(session,'chmod 755 ~/provisioner.script')
         ssh_runcommand(session,'sudo ~/provisioner.script')
-        info_print("Optional bootstrap script complete")
+        log.info("Optional bootstrap script complete")
 
 # End machine configuration related tasks
 
@@ -216,7 +215,7 @@ def main():
     password = ""
     if not config.harden_only:
         password = ssh_changepassword(config.username)
-        info_print("Password for %s@%s is now %s" % (config.username,config.ip,password))
+        log.info("Password for %s@%s is now %s" % (config.username,config.ip,password))
 
     if not config.password_only:
         # If we changed the password, use the new one
@@ -232,7 +231,7 @@ def main():
             key = config.authorized_key
         setup_key_auth(new_password,key)
         configure_machine(new_password,config.bootstrap_script)
-    info_print("Bootstrap script exiting successfully")
+    log.info("Bootstrap script exiting successfully")
     sys.exit(0)
 
 if __name__ == "__main__":
