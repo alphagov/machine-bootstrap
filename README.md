@@ -80,5 +80,7 @@ SSH will listen on a random port on localhost (as set by Vagrant).
 
 - If you mess up the password, you can reset it either by destroying and recreating the VM or:
 
+```
     user@host$ vagrant up && vagrant ssh
     vagrant@vm$ sudo password ubuntu
+```
