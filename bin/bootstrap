@@ -171,40 +171,38 @@ def generate_rsa_key(username, ip):
     print ""
     return public_key
 
-def setup_key_auth(username,password,key,ip,port):
+def setup_key_auth(session,username,key):
     log.info("Setting up key-based auth for %s" % username)
-    with closing(ssh_connect(username=username,password=password,ip=ip,port=port)) as session:
-        ssh_runcommand(session,'test -d ~%s/.ssh || mkdir ~%s/.ssh && chmod 700 ~%s/.ssh' % (username,username,username))
-        ssh_runcommand(session,'echo "%s" > ~%s/.ssh/authorized_keys && chmod 600 ~%s/.ssh/authorized_keys' % (key,username,username))
+    ssh_runcommand(session,'test -d ~%s/.ssh || mkdir ~%s/.ssh && chmod 700 ~%s/.ssh' % (username,username,username))
+    ssh_runcommand(session,'echo "%s" > ~%s/.ssh/authorized_keys && chmod 600 ~%s/.ssh/authorized_keys' % (key,username,username))
 
 # end RSA key generation
 
 # Machine configuration related tasks
-def configure_machine(username,password,bootstrap_script,ip,port):
+def configure_machine(session,bootstrap_script):
     log.info("Copying up the puppet directory")
-    with closing(ssh_connect(username=username,password=password,ip=ip,port=port)) as session:
-        # Copy the puppet dir from this repo
-        ssh_copydir(session,'./puppet','/tmp/')
-        log.info("Removing old puppet package")
-        # Puppet package is 2.7.11, we need >2.7.13 so remove it
-        ssh_runcommand(session,'sudo apt-get -y remove puppet puppet-common facter')
-        log.info("Installing puppet from Gems")
-        # Install a good version of Puppet
-        ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri --version "3.1.1" puppet ')
-        ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri --version "0.9.9" librarian-puppet')
-        ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri --version "1.7.1" facter')
-        # Download our included puppet modules
-        log.info("Running librarian-puppet")
-        ssh_runcommand(session,'cd /tmp/puppet; sudo librarian-puppet install')
-        # Run puppet
-        log.info("Applying puppet config")
-        ssh_runcommand(session,'sudo puppet apply --modulepath=/tmp/puppet/vendor/modules /tmp/puppet/manifests/site.pp')
-        if bootstrap_script != "":
-            log.info("Running optional bootstrap script - %s" % bootstrap_script)
-            ssh_copyfile(session,bootstrap_script,'~/provisioner.script')
-            ssh_runcommand(session,'chmod 755 ~/provisioner.script')
-            ssh_runcommand(session,'sudo ~/provisioner.script')
-            log.info("Optional bootstrap script complete")
+    # Copy the puppet dir from this repo
+    ssh_copydir(session,'./puppet','/tmp/')
+    log.info("Removing old puppet package")
+    # Puppet package is 2.7.11, we need >2.7.13 so remove it
+    ssh_runcommand(session,'sudo apt-get -y remove puppet puppet-common facter')
+    log.info("Installing puppet from Gems")
+    # Install a good version of Puppet
+    ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri --version "3.1.1" puppet ')
+    ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri --version "0.9.9" librarian-puppet')
+    ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri --version "1.7.1" facter')
+    # Download our included puppet modules
+    log.info("Running librarian-puppet")
+    ssh_runcommand(session,'cd /tmp/puppet; sudo librarian-puppet install')
+    # Run puppet
+    log.info("Applying puppet config")
+    ssh_runcommand(session,'sudo puppet apply --modulepath=/tmp/puppet/vendor/modules /tmp/puppet/manifests/site.pp')
+    if bootstrap_script != "":
+        log.info("Running optional bootstrap script - %s" % bootstrap_script)
+        ssh_copyfile(session,bootstrap_script,'~/provisioner.script')
+        ssh_runcommand(session,'chmod 755 ~/provisioner.script')
+        ssh_runcommand(session,'sudo ~/provisioner.script')
+        log.info("Optional bootstrap script complete")
 
 # End machine configuration related tasks
 
@@ -235,8 +233,9 @@ def main():
             key = generate_rsa_key(username=config.username,ip=config.ip)
         else:
             key = config.authorized_key
-        setup_key_auth(username=config.username,password=new_password,key=key,**machine)
-        configure_machine(username=config.username,password=new_password,bootstrap_script=config.bootstrap_script,**machine)
+        with closing(ssh_connect(username=config.username,password=new_password,ip=config.ip,port=config.port)) as session:
+            setup_key_auth(session,username=config.username,key=key)
+            configure_machine(session,bootstrap_script=config.bootstrap_script)
     log.info("Bootstrap script exiting successfully")
     sys.exit(0)
 
