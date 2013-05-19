@@ -3,6 +3,8 @@ Exec {
 }
 
 node default {
+  include fail2ban
+  include ssh::server
   include ufw
   exec { 'apt-get-update':
     command => '/usr/bin/apt-get update || true',
