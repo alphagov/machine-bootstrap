@@ -54,6 +54,7 @@ def parse_config():
     parser.add_argument('-P',dest='port',type=int,default=22,help="Port to connect to [22]")
     parser.add_argument('-s',dest='bootstrap_script',type=str,default=None,help="Path to optional script to run after puppet configuration")
     parser.add_argument('-u',dest='username',default='ubuntu',help="Username to connect as [ubuntu]")
+    parser.add_argument('-v',dest='verbose',action='store_true',default=False,help="Show verbose output")
     config = parser.parse_args()
     if config.prompt:
         config.password = getpass.getpass('Password for %s@%s: ' % (config.username,config.ip))
@@ -118,6 +119,7 @@ def ssh_connect(username, password, ip, port):
     except:
         throw_error("Could not connect to machine",1)
     return ssh
+
 
 def ssh_runcommand(session,command):
     """Given an SSH session, run a command and if debug mode is enabled, show the output"""
@@ -205,11 +207,14 @@ def configure_machine(session,bootstrap_script):
         ssh_runcommand(session,'sudo ~/provisioner.script')
         log.info("Optional bootstrap script complete")
 
+
 # End machine configuration related tasks
 
 def main():
     config = parse_config()
-    _log_level = logging.INFO
+    _log_level = logging.WARNING
+    if config.verbose:
+        _log_level = logging.INFO
     if config.debug:
         _log_level = logging.DEBUG
     logging.basicConfig(format='%(levelname)s: %(message)s', level=_log_level)
@@ -239,6 +244,7 @@ def main():
             configure_machine(session,bootstrap_script=config.bootstrap_script)
     log.info("Bootstrap script exiting successfully")
     sys.exit(0)
+
 
 if __name__ == "__main__":
     main()
