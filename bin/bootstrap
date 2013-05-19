@@ -183,20 +183,21 @@ def configure_machine(session,bootstrap_script):
     log.info("Copying up the puppet directory")
     # Copy the puppet dir from this repo
     ssh_copydir(session,'./puppet','/tmp/')
+    ssh_copydir(session,'./puppet/manifests','/tmp/puppet')
     log.info("Removing old puppet package")
     # Puppet package is 2.7.11, we need >2.7.13 so remove it
     ssh_runcommand(session,'sudo apt-get -y remove puppet puppet-common facter')
     log.info("Installing puppet from Gems")
     # Install a good version of Puppet
-    ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri --version "3.1.1" puppet ')
-    ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri --version "0.9.9" librarian-puppet')
-    ssh_runcommand(session,'sudo gem install --no-rdoc --no-ri --version "1.7.1" facter')
+    ssh_runcommand(session,'sudo gem which puppet || sudo gem install --no-rdoc --no-ri --version "3.1.1" puppet ')
+    ssh_runcommand(session,'sudo gem list | grep librarian-puppet || sudo gem install --no-rdoc --no-ri --version "0.9.9" librarian-puppet')
+    ssh_runcommand(session,'sudo gem which facter || sudo gem install --no-rdoc --no-ri --version "1.7.1" facter')
     # Download our included puppet modules
     log.info("Running librarian-puppet")
     ssh_runcommand(session,'cd /tmp/puppet; sudo librarian-puppet install')
     # Run puppet
     log.info("Applying puppet config")
-    ssh_runcommand(session,'sudo puppet apply --modulepath=/tmp/puppet/vendor/modules /tmp/puppet/manifests/site.pp')
+    ssh_runcommand(session,'sudo puppet apply --modulepath=/tmp/puppet/modules /tmp/puppet/manifests/site.pp')
     if bootstrap_script:
         log.info("Running optional bootstrap script - %s" % bootstrap_script)
         ssh_copyfile(session,bootstrap_script,'~/provisioner.script')
