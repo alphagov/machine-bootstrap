@@ -3,7 +3,9 @@ Exec {
 }
 
 node default {
-  include fail2ban
+  class {'fail2ban':
+    require => Exec['apt-get-update']
+  }
   include ssh::server
   include ufw
   exec { 'apt-get-update':
