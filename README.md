@@ -18,10 +18,10 @@ dependencies from requirements.txt:
 
     pip install -r requirements.txt
 
-# Instructions for hardening machines
+# Instructions for bootstrapping machines
 
-Generating a new SSH key automatically and hardening for a machine at
-IP address 192.0.2.32:
+Generating a new SSH key automatically and bootstrap a machine at
+IP address 192.0.2.32 which has the default username and password:
 
     ./bin/bootstrap 192.0.2.32
 
