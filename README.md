@@ -4,7 +4,10 @@ This repository contains methods for bootstrapping blank machines.
 
 It currently contains a single script `bin/bootstrap` which can:
 - Connect to a machine via SSH and set a random password
-- Connect to a machine via SSH and apply the puppet manifest in the `puppet` directory
+- Connect to a machine via SSH and apply the puppet manifest in the `puppet` directory which:
+ - Turns on the firewall, default deny with an allow for only SSH
+ - Sets SSHd to only allow key logins and disallow root
+ - Installs fail2ban with a default policy to block repeated SSH connections
 - Run an optional bootstrap script (any lang available on destination) after initial puppet run
 - A vagrant environment where `bootstrap` can be tested
 
