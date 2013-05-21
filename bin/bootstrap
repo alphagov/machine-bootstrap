@@ -163,11 +163,11 @@ def generate_rsa_key(username, ip):
     key = RSA.generate(2048)
     private_key = key.exportKey('PEM')
     public_key = key.exportKey('OpenSSH') + " %s@%s" % (username,ip)
-    log.info("... New SSH public key (do not need to save)")
+    log.warning("... New SSH public key (do not need to save)")
     print ""
     print public_key
     print
-    log.info("... New SSH private key (please save to a file)")
+    log.warning("... New SSH private key (please save to a file)")
     print ""
     print private_key
     print ""
@@ -225,7 +225,7 @@ def main():
     machine = {'ip':config.ip, 'port':config.port}
     if not config.harden_only:
         password = ssh_changepassword(user=config.username,current_password=config.password,length=config.length,**machine)
-        log.info("Password for %s@%s is now %s" % (config.username,config.ip,password))
+        log.warning("Password for %s@%s is now %s" % (config.username,config.ip,password))
 
     if not config.password_only:
         # If we changed the password, use the new one
@@ -240,9 +240,11 @@ def main():
         else:
             key = generate_rsa_key(username=config.username,ip=config.ip)
         with closing(ssh_connect(username=config.username,password=new_password,ip=config.ip,port=config.port)) as session:
+            log.warning("Setting up key-based auth")
             setup_key_auth(session,username=config.username,key=key)
+            log.warning("Configuring machine")
             configure_machine(session,bootstrap_script=config.bootstrap_script)
-    log.info("Bootstrap script exiting successfully")
+    log.warning("Bootstrap script exiting successfully")
     sys.exit(0)
 
 
