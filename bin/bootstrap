@@ -32,6 +32,7 @@ import crypt
 import getpass
 import logging
 import random
+import re
 import string
 import sys
 from Crypto.PublicKey import RSA
@@ -133,6 +134,20 @@ def ssh_runcommand(session,command):
     for line in stderr.readlines():
             log.debug('stderr: %s' % line.rstrip())
 
+def ssh_checksudo(session):
+    """Given an SSH session, check if the sudo command works without a password"""
+    try:
+        log.debug('Checking for sudo without a password')
+        stdin, stdout, stderr = session.exec_command('sudo -n id')
+    except:
+        throw_error('Cannot check whether sudo works',3)
+    regex = re.compile('.*password is required.*')
+    for line in stderr.readlines():
+        log.debug(stderr)
+        if re.match(regex,line):
+            throw_error('Sudo requires a password, bootstrapping would fail!',4)
+
+
 def ssh_changepassword(length, user, current_password, ip, port):
     """SSH to to a machine, try to change the password and test for success"""
     passwd = new_password(length=length, user=user)
@@ -223,6 +238,9 @@ def main():
 
     password = ""
     machine = {'ip':config.ip, 'port':config.port}
+
+    ssh_checksudo(ssh_connect(config.username, config.password, config.ip, config.port))
+
     if not config.harden_only:
         password = ssh_changepassword(user=config.username,current_password=config.password,length=config.length,**machine)
         log.warning("Password for %s@%s is now %s" % (config.username,config.ip,password))
