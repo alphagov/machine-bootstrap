@@ -202,6 +202,8 @@ def configure_machine(session,bootstrap_script):
     ssh_copydir(session,'./puppet','/tmp/')
     ssh_copydir(session,'./puppet/manifests','/tmp/puppet')
     log.info("Removing old puppet package")
+    # Install Ruby1.9.1 if missing.
+    ssh_runcommand(session,'[[ $(dpkg -s ruby1.9.1 >/dev/null 2>&1) ]] || sudo apt-get install -qq ruby1.9.1 2>&1' )
     # Puppet package is 2.7.11, we need >2.7.13 so remove it
     ssh_runcommand(session,'sudo apt-get -y remove puppet puppet-common facter')
     log.info("Installing puppet from Gems")
