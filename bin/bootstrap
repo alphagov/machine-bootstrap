@@ -146,7 +146,7 @@ def ssh_runcommand(session,command,show_output=False):
         for line in stdout.readlines():
             log.debug('stdout: %s' % line.rstrip())
 
-def ssh_checksudo(session):
+def ssh_checksudo(session,username,password):
     """Given an SSH session, check if the sudo command works without a password"""
     try:
         log.debug('Checking for sudo without a password')
@@ -157,7 +157,11 @@ def ssh_checksudo(session):
     for line in stderr.readlines():
         log.debug(stderr)
         if re.match(regex,line):
-            throw_error('Sudo requires a password, bootstrapping would fail!',4)
+            log.debug('Sudo requires a password, trying to fix it')
+            session.exec_command("echo '%s\n' | sudo -S su - root /bin/sh -c 'echo \"%s ALL=(ALL) NOPASSWD:ALL\" >/etc/sudoers.d/01-bootstrap-user && chmod 440 /etc/sudoers.d/01-bootstrap-user'" % (password,username))
+            log.debug('Creating passwordless sudo config')
+
+
 
 
 def ssh_changepassword(length, user, current_password, ip, port):
@@ -262,6 +266,9 @@ def configure_machine(session,bootstrap_script,hiera_gpg_email,hiera_gpg_name):
         for line in key.readlines():
             print line.rstrip()
         print
+    # We may have allowed passwordless sudo for this script. We should remove that.
+    log.debug('Removing passwordless sudo config')
+    ssh_runcommand(session,'sudo rm -f /etc/sudoers.d/01-bootstrap-user')
 # End machine configuration related tasks
 
 def main():
@@ -278,7 +285,7 @@ def main():
     password = ""
     machine = {'ip':config.ip, 'port':config.port}
 
-    ssh_checksudo(ssh_connect(config.username, config.password, config.ip, config.port))
+    ssh_checksudo(ssh_connect(config.username, config.password, config.ip, config.port),config.username,config.password)
 
     if not config.harden_only:
         password = ssh_changepassword(user=config.username,current_password=config.password,length=config.length,**machine)
