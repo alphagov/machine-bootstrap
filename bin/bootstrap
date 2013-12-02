@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Title:
+Title: machine-bootstrap
 License: MIT
 
 Description:
@@ -19,6 +19,13 @@ Description:
 
     It will then connect to the machine with the new password and perform any
     configuration via puppet.
+
+    NB: If you are using this script to generate GPG keys you should be aware that
+    in order to generate enough entropy in a VM, we are installing haveged - that
+    means that the entropy quality won't be quite as good as when GPG solely uses
+    /dev/random. If you have concerns about attack via this kind of thing you
+    probably should generate your GPG keys on a machine with more natural entropy.
+    Read more about haveged at http://www.issihosts.com/haveged/
 
 Usage:
 
@@ -236,6 +243,7 @@ def configure_machine(session,bootstrap_script,hiera_gpg_email,hiera_gpg_name):
     #
     if hiera_gpg_email:
         log.warning("Creating GPG for root with name '%s' and email '%s'" % (hiera_gpg_name,hiera_gpg_email))
+        log.warning('NB: Installing haveged to help with entropy - this weakens your system slightly. Please read the notes at the beginning of this script')
         log.debug('Installing gnupg2 and haveged')
         ssh_runcommand(session,'sudo apt-get install -y gnupg2 haveged')
         log.debug('Creating /tmp/gnupg_opts')
