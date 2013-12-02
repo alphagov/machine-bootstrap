@@ -1,16 +1,31 @@
 from fabric.api import *
 
+
 @task
 def changepassword(username="ubuntu",password=""):
-    """Change the password for username [default: ubuntu] (will create password if not supplied)"""
+    """
+    Change the password for username [default: ubuntu]
+
+    You can supply optional username and password arguments if you wish
+    to set a particular password or change the password for a different
+    user than the default [ubuntu]
+    """
     # Prompt for a new password if it's not supplied on stdin
     # SSH to machine and change password
     # Test that password change works, if not bail
     print "unimplemented: changepassword"
 
 @task
-def gensshkey(username="ubuntu"):
-    """Generate and install an SSH key for the supplied user [ubuntu]"""
+def gensshkey(username="ubuntu",ssh_publickey=""):
+    """
+    Generate and install an SSH key for the supplied user [ubuntu]
+
+    This will generate a unique SSH key on your machine and add the
+    public key to the /home/${username}/.ssh/authorized_keys file.
+
+    You can set a particular public key by supplying the correct
+    argument (ssh_publickey=path/to/public/key) to the task.
+    """
     # Generate an RSA key
     # Print the public key
     # Print the private key
@@ -44,6 +59,7 @@ def gpgsetup(username="root",email="root@localhost.localdomain",name="GPG Key"):
 
 @task
 def default():
+    """changepassword,gensshkey,gpgsetup,harden with the default options"""
     changepassword()
     gensshkey()
     gpgsetup()
