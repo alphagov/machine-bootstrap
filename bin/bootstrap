@@ -48,9 +48,11 @@ def parse_config():
     parser.add_argument('ip',help="IP of machine to connect to")
     parser.add_argument('-C','--change-password-only',dest='password_only',action='store_true',default=False,help="Change password, but do not attempt to run puppet on the machine [False]")
     parser.add_argument('-d',dest='debug',action='store_true',default=False,help="Show debug output")
+    parser.add_argument('-G',dest='hiera_gpg_email',type=str,default=None,help="Email for root GPG key. Sets GPG for root with the name above and this email.")
     parser.add_argument('-H','--harden-only',dest='harden_only',action='store_true',default=False,help="Do not change the password, simply run Puppet to harden the machine [False]")
     parser.add_argument('-k',dest='authorized_key',type=str,default=None,help="Supply an authorized_keys entry for this user (quoted exact line format from .ssh/authorized_keys)")
     parser.add_argument('-l',dest='length',type=int,default=12,help="Length of auto-generated password [12]")
+    parser.add_argument('-N',dest='hiera_gpg_name',type=str,default='Puppet Hiera Key',help="Name for root GPG key. [Puppet Hiera Key]")
     parser.add_argument('-p',dest='prompt',action='store_true',default=False,help="Prompt for password [otherwise assume it is 'ubuntu']")
     parser.add_argument('-P',dest='port',type=int,default=22,help="Port to connect to [22]")
     parser.add_argument('-s',dest='bootstrap_script',type=str,default=None,help="Path to optional script to run after puppet configuration")
@@ -122,17 +124,20 @@ def ssh_connect(username, password, ip, port):
     return ssh
 
 
-def ssh_runcommand(session,command):
+def ssh_runcommand(session,command,show_output=False):
     """Given an SSH session, run a command and if debug mode is enabled, show the output"""
     try:
         log.debug('Running command: %s' % command)
         stdin, stdout, stderr = session.exec_command(command)
     except:
         throw_error("Command failed - %s" % command,2)
-    for line in stdout.readlines():
-            log.debug('stdout: %s' % line.rstrip())
     for line in stderr.readlines():
             log.debug('stderr: %s' % line.rstrip())
+    if show_output:
+        return stdout
+    else:
+        for line in stdout.readlines():
+            log.debug('stdout: %s' % line.rstrip())
 
 def ssh_checksudo(session):
     """Given an SSH session, check if the sudo command works without a password"""
@@ -196,7 +201,7 @@ def setup_key_auth(session,username,key):
 # end RSA key generation
 
 # Machine configuration related tasks
-def configure_machine(session,bootstrap_script):
+def configure_machine(session,bootstrap_script,hiera_gpg_email,hiera_gpg_name):
     log.info("Copying up the puppet directory")
     # Copy the puppet dir from this repo
     ssh_copydir(session,'./puppet','/tmp/')
@@ -224,8 +229,31 @@ def configure_machine(session,bootstrap_script):
         ssh_runcommand(session,'chmod 755 ~/provisioner.script')
         ssh_runcommand(session,'sudo ~/provisioner.script')
         log.info("Optional bootstrap script complete")
-
-
+    #
+    # This will create a GPG key for root with the email address specified in the
+    # -G argument with a name which defaults to 'Puppet Hiera Key'. It's intended
+    # to be used to encrypt files as part of a hiera-gpg setup
+    #
+    if hiera_gpg_email:
+        log.warning("Creating GPG for root with name '%s' and email '%s'" % (hiera_gpg_name,hiera_gpg_email))
+        log.debug('Installing gnupg2 and haveged')
+        ssh_runcommand(session,'sudo apt-get install -y gnupg2 haveged')
+        log.debug('Creating /tmp/gnupg_opts')
+        ssh_runcommand(session,'echo "Key-Type: RSA" > /tmp/gnupg_opts')
+        ssh_runcommand(session,'echo "Key-Length: 4096" >> /tmp/gnupg_opts')
+        ssh_runcommand(session,'echo "Subkey-Type: default" >> /tmp/gnupg_opts')
+        ssh_runcommand(session,'echo "Name-Real: %s" >> /tmp/gnupg_opts' % hiera_gpg_name)
+        ssh_runcommand(session,'echo "Name-Email: %s" >> /tmp/gnupg_opts' % hiera_gpg_email)
+        ssh_runcommand(session,'echo "Expire-Date: 0" >> /tmp/gnupg_opts')
+        ssh_runcommand(session,'echo "%commit" >> /tmp/gnupg_opts')
+        log.debug('Creating GPG key')
+        ssh_runcommand(session,'sudo su - root /bin/sh -c "cat /tmp/gnupg_opts | gpg2 --batch --gen-key -"')
+        log.warning('Exporting GPG key for root - you may need to import this into your Hiera-GPG setup')
+        key = ssh_runcommand(session,'sudo su - root /bin/sh -c "gpg2 --armor --export \"%s\""' % hiera_gpg_name,show_output=True)
+        print
+        for line in key.readlines():
+            print line.rstrip()
+        print
 # End machine configuration related tasks
 
 def main():
@@ -264,7 +292,7 @@ def main():
             log.warning("Setting up key-based auth")
             setup_key_auth(session,username=config.username,key=key)
             log.warning("Configuring machine")
-            configure_machine(session,bootstrap_script=config.bootstrap_script)
+            configure_machine(session,bootstrap_script=config.bootstrap_script,hiera_gpg_email=config.hiera_gpg_email,hiera_gpg_name=config.hiera_gpg_name)
     log.warning("Bootstrap script exiting successfully")
     sys.exit(0)
 
