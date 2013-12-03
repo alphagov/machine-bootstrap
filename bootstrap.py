@@ -3,6 +3,13 @@ from fabric.api import *
 from fabric.colors import *
 from fabric.task_utils import crawl
 from fabric.utils import puts, fastprint
+
+# For password generation
+from passlib.hash import sha512_crypt
+import random
+import string
+
+# For help function
 import textwrap
 
 
@@ -44,8 +51,44 @@ def help(name=""):
 def info(message):
     puts(blue(message))
 
+def warn(message):
+    puts(red(message))
 
 # Helper functions for password management
+
+def _choose_random_chars(alphabet,length):
+    """From an alphabet, choose a number of random characters"""
+    chars = []
+    for i in range(length):
+        chars.append(random.choice(alphabet))
+    return "".join(chars)
+
+
+def _generate_salt(length):
+    """Generate a random string of length to be used as a SHAS512 salt"""
+    salt_alphabet = string.digits + string.ascii_letters + "./"
+    salt = _choose_random_chars(salt_alphabet,length)
+    return salt
+
+
+def _generate_password(length):
+    """Generate a random string of length to be used as a password"""
+    password_alphabet = string.digits + string.ascii_letters
+    password = _choose_random_chars(password_alphabet,length)
+    return password
+
+
+def _encrypt_password(password):
+    """Generate the salted password hash using SHA512 with the same options as Ubuntu 12.04"""
+    return sha512_crypt.encrypt(password,salt=_generate_salt(8),rounds=5000)
+
+
+def _new_password(length, user):
+    """Output {password => "PLAINTEXT", shadow => "Shadow entry"} dict for later use"""
+    output = {}
+    output['password'] = _generate_password(length)
+    output['shadow'] = "%s:%s:::::::" % (user, _encrypt_password(output['password']))
+    return output
 
 # Helper functions for gpg key management
 
@@ -114,19 +157,23 @@ def _setup_ssh():
 # Public fabric tasks
 
 @task
-def change_password(username="ubuntu",password=""):
+def change_password(my_user="ubuntu"):
     """
-    Change the password for username [default: ubuntu]
-
-    You can supply optional username and password arguments if you wish
-    to set a particular password or change the password for a different
-    user than the default [ubuntu]
+    Change the password for the user [ubuntu] to a new random one
     """
-    # Prompt for a new password if it's not supplied on stdin
-    # SSH to machine and change password
-    # Test that password change works, if not bail
-    print "unimplemented: change_password"
-
+    info("Changing password for %s user" % my_user)
+    new_pass = _new_password(10,my_user)
+    command = "sed -i 's;" + my_user + ":.*;" + new_pass['shadow'] + ";g' /etc/shadow"
+    sudo(command)
+    old_pass = env.password
+    env.password = new_pass['password']
+    try:
+        with hide('stdout'):
+            run('uname -a')
+        warn("New password for %s is %s" % (my_user,new_pass['password']))
+    except:
+        warn("Password change failed, try logging in manually with old password")
+        env.password = old_pass
 
 @task
 def generate_ssh_key(username="ubuntu",ssh_publickey=""):
