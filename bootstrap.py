@@ -12,6 +12,9 @@ import string
 # For ssh key generation
 from Crypto.PublicKey import RSA
 
+# For gpg key generation
+from StringIO import StringIO
+
 # For help function
 import textwrap
 
@@ -263,10 +266,33 @@ def generate_gpg_key(username="root",email="root@localhost.localdomain",name="GP
     then be used to encrypt files for decryption only by this
     machine.
     """
-    # Create a new GPG key on the machine for the name and email
-    # Export the GPG key
-    print "unimplemented: gpgsetup"
-
+    info('Creating a GPG key for %s' % username)
+    info('    Name:  %s' % name)
+    info('    Email: %s' % email)
+    with hide('stdout'):
+        info(' - Installing gnupg2 and haveged')
+        sudo('apt-get install -y gnupg2 haveged')
+        options = """
+                  Key-Type: RSA
+                  Key-Length: 4096
+                  Subkey-Type: default
+                  Name-Real: %s
+                  Name-Email: %s
+                  Expire-Date: 0
+                  %%commit
+                  """ % (name,email)
+        real_options = textwrap.dedent(options).strip()
+        info(' - Creating GPG key')
+        sudo('echo "%s" | gpg2 --batch --gen-key -' % real_options,user=username)
+    warn('New GPG public key - please use wisely')
+    my_output = StringIO()
+    sudo('gpg2 --armor --export "%s" > /tmp/gpg_key' % name,user=username)
+    get('/tmp/gpg_key',my_output)
+    print('')
+    fastprint(my_output.getvalue())
+    print('')
+    my_output.close()
+    sudo('rm -f /tmp/gpg_key')
 
 @task
 def default():
