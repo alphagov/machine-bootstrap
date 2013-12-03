@@ -9,6 +9,9 @@ from passlib.hash import sha512_crypt
 import random
 import string
 
+# For ssh key generation
+from Crypto.PublicKey import RSA
+
 # For help function
 import textwrap
 
@@ -90,7 +93,32 @@ def _new_password(length, user):
     output['shadow'] = "%s:%s:::::::" % (user, _encrypt_password(output['password']))
     return output
 
-# Helper functions for gpg key management
+
+# Helper functions for ssh key management
+
+def _generate_rsa_key(username):
+    key = RSA.generate(2048)
+    key_info = {}
+    key_info['private'] = key.exportKey('PEM')
+    key_info['public']  = key.exportKey('OpenSSH') + " %s@%s" % (username,env.host)
+    return key_info
+
+
+def _setup_key_auth(username="ubuntu",ssh_publickey=None):
+    if ssh_publickey is None:
+        key = _generate_rsa_key(username)
+        warn('New SSH private key for %s@%s' % (username, env.host))
+        print('')
+        fastprint(key['private'])
+        print('')
+        print('')
+        publickey = key['public']
+    else:
+        info('Using supplied public key for SSH')
+        publickey = "ssh-rsa " + ssh_publickey + " %s@%s" % (username,env.host)
+    sudo('test -d ~%s/.ssh || mkdir ~%s/.ssh && chmod 700 ~%s/.ssh' % (username,username,username))
+    sudo('echo "%s" >> ~%s/.ssh/authorized_keys && chmod 600 ~%s/.ssh/authorized_keys' % (publickey,username,username))
+
 
 # Helper functions to be used in other tasks
 
@@ -176,7 +204,7 @@ def change_password(my_user="ubuntu"):
         env.password = old_pass
 
 @task
-def generate_ssh_key(username="ubuntu",ssh_publickey=""):
+def generate_ssh_key(username="ubuntu",ssh_publickey=None):
     """
     Generate and install an SSH key for the supplied user [ubuntu]
 
@@ -186,12 +214,8 @@ def generate_ssh_key(username="ubuntu",ssh_publickey=""):
     You can set a particular public key by supplying the correct
     argument (ssh_publickey=path/to/public/key) to the task.
     """
-    # Generate an RSA key
-    # Print the public key
-    # Print the private key
-    # Copy the private key to the machine
-    # Test that key auth works
-    print "unimplemented: generate_rsa_key"
+    info("Setting up SSH key-auth for %s" % username)
+    _setup_key_auth(username,ssh_publickey)
 
 
 @task
