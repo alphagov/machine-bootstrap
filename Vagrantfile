@@ -4,8 +4,6 @@
 VAGRANTFILE_API_VERSION = "2"
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
-  config.dns.tld           = 'bootstrap.dev'
-  config.dns.patterns      = [/^.*bootstrap.dev$/]
   config.ssh.forward_agent = true
   config.vm.box            = 'ubuntu-precise-cloud-image'
   config.vm.box_url        = 'http://cloud-images.ubuntu.com/precise/current/precise-server-cloudimg-vagrant-amd64-disk1.box'
@@ -16,9 +14,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     vb.customize        ['modifyvm', :id, '--name', 'ubuntu-1204-bootstrap-dev']
   end
   config.vm.host_name      = 'vm.bootstrap.dev'
-  config.vm.provision :puppet do |puppet|
-    puppet.manifests_path  = "puppet/manifests"
-    puppet.manifest_file   = "vagrant.pp"
-    puppet.module_path     = "puppet/vendor/modules"
+  config.vm.provision :shell do |shell|
+      # Set the password for the ubuntu user to 'ubuntu'
+      shell.inline = "sudo su - root /bin/bash -c 'echo \"ubuntu:ubuntu\" | chpasswd -c SHA512'"
   end
 end
