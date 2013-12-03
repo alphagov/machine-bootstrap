@@ -78,7 +78,7 @@ with SSH listening on a random port (see output of vagrant).
 
 ## 2. Testing password changing against the VM
 
-    ./bin/bootstrap -C -d -P2222 localhost
+    $ fab --port=2222 -H 127.0.0.1 change_password
 
 - If you mess up the password, you can reset it either by destroying and recreating the VM or:
 
