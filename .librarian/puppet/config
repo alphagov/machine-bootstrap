@@ -1,3 +1,0 @@
---- 
-  LIBRARIAN_PUPPET_PATH: puppet/vendor/modules
-  LIBRARIAN_PUPPET_DESTRUCTIVE: "false"
