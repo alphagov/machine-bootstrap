@@ -233,10 +233,12 @@ def harden():
     """
     info('Running hardening tasks')
     with hide('running'):
+        _apt_update()
         _apt_upgrade()
         _setup_ufw()
         _setup_fail2ban()
         _setup_ssh()
+        _reboot()
 
 
 @task
@@ -271,6 +273,7 @@ def generate_gpg_key(username="root",email="root@localhost.localdomain",name="GP
     info('    Email: %s' % email)
     with hide('stdout'):
         info(' - Installing gnupg2 and haveged')
+        _apt_update()
         sudo('apt-get install -y gnupg2 haveged')
         options = """
                   Key-Type: RSA
@@ -300,7 +303,6 @@ def default():
     Run the default set of actions
 
     These are:
-        - apt_update
         - generate_rsa_key
         - generate_gpg_key
         - change_password
@@ -309,12 +311,10 @@ def default():
             - setup_ufw
             - setup_fail2ban
             - setup_ssh
-        - reboot
+            - reboot
     """
-    _apt_update()
     generate_ssh_key()
     generate_gpg_key()
     change_password()
     harden()
-    _reboot()
 

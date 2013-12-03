@@ -34,7 +34,6 @@ Running the default actions on a VM:
     fab -H 192.0.2.32 default
 
 The `default` actions are:
- - apt_update
  - generate_rsa_key
  - generate_gpg_key
  - change_password
@@ -43,7 +42,7 @@ The `default` actions are:
    - setup_ufw
    - setup_fail2ban
    - setup_ssh
- - reboot
+   - reboot
 
 Supplying an SSH public key where PUBLICKEY is the key WITHOUT the type (e.g. ssh-rsa) or the comment (e.g. user@hostname)
 
