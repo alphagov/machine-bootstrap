@@ -1,7 +1,16 @@
 from fabric import state
 from fabric.api import *
+from fabric.colors import *
 from fabric.task_utils import crawl
+from fabric.utils import puts, fastprint
 import textwrap
+
+env.user="ubuntu"
+if env.password == None:
+    env.password="ubuntu"
+
+state.output.status=False
+state.output.running=False
 
 @task
 def help(name=""):
@@ -21,6 +30,8 @@ def help(name=""):
     else:
         puts(textwrap.dedent(task.__doc__).strip())
 
+def info(message):
+    puts(blue(message))
 
 def _apt_update():
     """
@@ -29,16 +40,20 @@ def _apt_update():
     Update all the package indexes. This should be run prior
     to installing any packages.
     """
-    print "unimplemented: apt_update"
+    info('Running apt-get update')
+    with hide('running','stdout'):
+        sudo('/usr/bin/apt-get update -qq >>/root/machine-bootstrap.log')
 
 def _apt_upgrade():
     """
-    Run 'apt-get dist-upgrade' on this machine.
+    Run 'apt-get upgrade' on this machine.
 
     This will update all packages to the latest version
     supplied by the OS vendor.
     """
-    print "unimplemented: apt_upgrade"
+    info('Running apt-get upgrade')
+    with hide('running','stdout'):
+        sudo('DEBIAN_FRONTEND=noninteractive /usr/bin/apt-get upgrade -qq -y >>/root/machine-bootstrap.log')
 
 def _reboot():
     """
@@ -46,19 +61,31 @@ def _reboot():
 
     Reboot machine, to be used after all configuration is completed.
     """
-    print "unimplemented: reboot"
+    info('Rebooting machine immediately')
+    with hide('running','stdout'):
+        sudo('shutdown -r now')
 
 def _setup_ufw():
     """Enable UFW with port 22 open"""
-    print "unimplemented: setup_ufw"
+    info('Enabling UFW with allow for 22/tcp')
+    with hide('running','stdout'):
+        sudo('/usr/bin/apt-get install -y ufw')
+        sudo('/usr/sbin/ufw allow 22/tcp')
+        sudo('yes | ufw enable')
 
 def _setup_fail2ban():
     """Install fail2ban package"""
-    print "unimplemented: setup_fail2ban"
+    info('Installing and starting fail2ban')
+    with hide('running','stdout'):
+        sudo('/usr/bin/apt-get install -y fail2ban >>/root/machine-bootstrap.log')
+        sudo('/usr/sbin/service fail2ban start >>/root/machine-bootstrap.log')
 
 def _setup_ssh():
     """Disable password logins to SSH"""
-    print "unimplemented: setup_ssh"
+    info('Disabling password logins to SSH')
+    with hide('running','stdout'):
+        sudo('/bin/sed -i \'s/PasswordAuthentication yes/PasswordAuthentication no/g\' /etc/ssh/sshd_config >>/root/machine-bootstrap.log')
+        sudo('/sbin/restart ssh >>/root/machine-bootstrap.log')
 
 
 @task
@@ -103,10 +130,12 @@ def harden():
         - Enable UFW with port 22 open
         - Install Fail2ban with the default config
     """
-    _apt_upgrade()
-    _setup_ufw()
-    _setup_fail2ban()
-    _setup_ssh()
+    info('Running harden task')
+    with hide('running'):
+        _apt_upgrade()
+        _setup_ufw()
+        _setup_fail2ban()
+        _setup_ssh()
 
 @task
 def custom_script(script_path):
