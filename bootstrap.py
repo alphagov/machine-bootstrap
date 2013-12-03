@@ -244,10 +244,9 @@ def custom_script(script_path):
     The argument to this script should be an executable script that
     will run as root on the destination machine.
     """
-    # Copy script to machine
-    # Run script under sudo
-    # Report errors
-    print "unimplemented: customscript"
+    info("Running script: %s" % script_path)
+    put(local_path=script_path,remote_path="/root/.bootstrap-script",use_sudo=True)
+    sudo('chmod 755 /root/.bootstrap-script && /root/.bootstrap-script')
 
 
 @task
