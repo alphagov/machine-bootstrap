@@ -5,12 +5,22 @@ from fabric.task_utils import crawl
 from fabric.utils import puts, fastprint
 import textwrap
 
+
+# This is an opinionated module that assumes that the ubuntu user exists
 env.user="ubuntu"
+
+
+# Unless we pass a password on the command-line via -I or --password we assume it is ubuntu
 if env.password == None:
     env.password="ubuntu"
 
+
+# By default we want to manage our own output
 state.output.status=False
 state.output.running=False
+
+
+# General helper functions and tasks
 
 @task
 def help(name=""):
@@ -30,8 +40,16 @@ def help(name=""):
     else:
         puts(textwrap.dedent(task.__doc__).strip())
 
+
 def info(message):
     puts(blue(message))
+
+
+# Helper functions for password management
+
+# Helper functions for gpg key management
+
+# Helper functions to be used in other tasks
 
 def _apt_update():
     """
@@ -44,6 +62,7 @@ def _apt_update():
     with hide('running','stdout'):
         sudo('/usr/bin/apt-get update -qq >>/root/machine-bootstrap.log')
 
+
 def _apt_upgrade():
     """
     Run 'apt-get upgrade' on this machine.
@@ -55,6 +74,7 @@ def _apt_upgrade():
     with hide('running','stdout'):
         sudo('DEBIAN_FRONTEND=noninteractive /usr/bin/apt-get upgrade -qq -y >>/root/machine-bootstrap.log')
 
+
 def _reboot():
     """
     Reboot the machine.
@@ -65,6 +85,7 @@ def _reboot():
     with hide('running','stdout'):
         sudo('shutdown -r now')
 
+
 def _setup_ufw():
     """Enable UFW with port 22 open"""
     info('Enabling UFW with allow for 22/tcp')
@@ -73,12 +94,14 @@ def _setup_ufw():
         sudo('/usr/sbin/ufw allow 22/tcp')
         sudo('yes | ufw enable')
 
+
 def _setup_fail2ban():
     """Install fail2ban package"""
     info('Installing and starting fail2ban')
     with hide('running','stdout'):
         sudo('/usr/bin/apt-get install -y fail2ban >>/root/machine-bootstrap.log')
         sudo('/usr/sbin/service fail2ban start >>/root/machine-bootstrap.log')
+
 
 def _setup_ssh():
     """Disable password logins to SSH"""
@@ -87,6 +110,8 @@ def _setup_ssh():
         sudo('/bin/sed -i \'s/PasswordAuthentication yes/PasswordAuthentication no/g\' /etc/ssh/sshd_config >>/root/machine-bootstrap.log')
         sudo('/sbin/restart ssh >>/root/machine-bootstrap.log')
 
+
+# Public fabric tasks
 
 @task
 def change_password(username="ubuntu",password=""):
@@ -101,6 +126,7 @@ def change_password(username="ubuntu",password=""):
     # SSH to machine and change password
     # Test that password change works, if not bail
     print "unimplemented: change_password"
+
 
 @task
 def generate_ssh_key(username="ubuntu",ssh_publickey=""):
@@ -120,6 +146,7 @@ def generate_ssh_key(username="ubuntu",ssh_publickey=""):
     # Test that key auth works
     print "unimplemented: generate_rsa_key"
 
+
 @task
 def harden():
     """
@@ -130,12 +157,13 @@ def harden():
         - Enable UFW with port 22 open
         - Install Fail2ban with the default config
     """
-    info('Running harden task')
+    info('Running hardening tasks')
     with hide('running'):
         _apt_upgrade()
         _setup_ufw()
         _setup_fail2ban()
         _setup_ssh()
+
 
 @task
 def custom_script(script_path):
@@ -149,6 +177,7 @@ def custom_script(script_path):
     # Run script under sudo
     # Report errors
     print "unimplemented: customscript"
+
 
 @task
 def generate_gpg_key(username="root",email="root@localhost.localdomain",name="GPG Key"):
@@ -167,6 +196,7 @@ def generate_gpg_key(username="root",email="root@localhost.localdomain",name="GP
     # Create a new GPG key on the machine for the name and email
     # Export the GPG key
     print "unimplemented: gpgsetup"
+
 
 @task
 def default():
