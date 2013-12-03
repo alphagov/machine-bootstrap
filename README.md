@@ -44,6 +44,10 @@ The `default` actions are:
    - setup_ssh
    - reboot
 
+Most complicated usage, specifying tasks manually and supplying options:
+
+    fab -H 192.0.2.32 generate_ssh_key change_password generate_gpg_key:email="puppet@localhost.localdomain",name="Puppet Hiera Key" harden
+
 Supplying an SSH public key where PUBLICKEY is the key WITHOUT the type (e.g. ssh-rsa) or the comment (e.g. user@hostname)
 
     fab -H 192.0.2.32 generate_rsa_key:PUBLICKEY
