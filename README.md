@@ -29,6 +29,9 @@ dependencies from requirements.txt:
 
 # Instructions for bootstrapping machines
 
+In the following instructions, the IP `192.0.2.32` should be replaced by the IP
+or hostname (asusming you have working DNS) of the VM you wish to bootstrap.
+
 Running the default actions on a VM:
 
     fab -H 192.0.2.32 default
@@ -70,13 +73,22 @@ To view extended help on a task:
 Run the following commands:
 
 ```sh
-    $ vagrant up # spin up VM
+    # spin up VM
+    $ vagrant up
 ```
 
-At this point you will have a local VM running, with the username 'ubuntu' and the password 'ubuntu'
-with SSH listening on a random port (see output of vagrant).
+At this point you will have a local VM running, with the username
+'ubuntu' and the password 'ubuntu' with SSH listening on a random
+port (see output of vagrant) on `127.0.0.1`
 
-## 2. Testing password changing against the VM
+## 2. Testing fabric against the VM
+
+- You need to specify a `--port=PORT` argument, where `PORT` is
+  the SSH port your VM is mapped to. It's usually `2222` by default,
+  but it depends on how many Vagrant machines you are currently running.
+
+- You should specify a `-H` argument of `127.0.0.1`
+
 
     $ fab --port=2222 -H 127.0.0.1 change_password
 
@@ -84,5 +96,5 @@ with SSH listening on a random port (see output of vagrant).
 
 ```
     user@host$ vagrant up && vagrant ssh
-    vagrant@vm$ sudo password ubuntu
+    vagrant@vm$ sudo passwd ubuntu
 ```
