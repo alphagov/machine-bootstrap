@@ -1,4 +1,2 @@
 .vagrant
-puppet/vendor/modules/*
-.tmp
-Vagrantfile.local
+*.pyc

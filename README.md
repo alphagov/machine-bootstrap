@@ -1,15 +1,24 @@
 # Overview
 
-This repository contains methods for bootstrapping blank machines.
+This repository contains fabric tasks for bootstrapping blank machines.
 
-It currently contains a single script `bin/bootstrap` which can:
-- Connect to a machine via SSH and set a random password
-- Connect to a machine via SSH and apply the puppet manifest in the `puppet` directory which:
- - Turns on the firewall, default deny with an allow for only SSH
- - Sets SSHd to only allow key logins and disallow root
- - Installs fail2ban with a default policy to block repeated SSH connections
-- Run an optional bootstrap script (any lang available on destination) after initial puppet run
-- A vagrant environment where `bootstrap` can be tested
+The only assumption it makes is that there exists a user called 'ubuntu'.
+
+By default it use a password of 'ubuntu' for that user, however this can be
+overridden by using the -I or --password arguments to Fabric.
+
+```sh
+$ fab -l
+Available commands:
+
+change_password   Change the password for the user [ubuntu] to a new random one
+custom_script     Run a custom script on the machine (requires path to script)
+default           Run the default set of actions
+generate_gpg_key  Setup a GPG key for a user
+generate_ssh_key  Generate and install an SSH key for the supplied user [ubuntu]
+harden            Secure this machine (needs key-based login first)
+help              Show extended help for a task (e.g. 'fab help:changepassword')
+```
 
 # Installation/setup
 
@@ -20,18 +29,42 @@ dependencies from requirements.txt:
 
 # Instructions for bootstrapping machines
 
-Generating a new SSH key automatically and bootstrap a machine at
-IP address 192.0.2.32 which has the default username and password:
+In the following instructions, the IP `192.0.2.32` should be replaced by the IP
+or hostname (asusming you have working DNS) of the VM you wish to bootstrap.
 
-    ./bin/bootstrap 192.0.2.32
+Running the default actions on a VM:
 
-Supplying an SSH public key:
+    fab -H 192.0.2.32 default
 
-    ./bin/bootstrap -k 'ssh-rsa LONGKEY comment' 192.0.2.32
+The `default` actions are:
+ - generate_rsa_key
+ - generate_gpg_key
+ - change_password
+ - harden
+   - apt_upgrade
+   - setup_ufw
+   - setup_fail2ban
+   - setup_ssh
+   - reboot
 
-To list other options, view the builtin help:
+Most complicated usage, specifying tasks manually and supplying options:
 
-    ./bin/bootstrap -h
+    fab -H 192.0.2.32 generate_ssh_key \
+                      change_password \
+                      generate_gpg_key:email="puppet@localhost.localdomain",name="Puppet Hiera Key" \
+                      harden
+
+Supplying an SSH public key where PUBLICKEY is the key WITHOUT the type (e.g. ssh-rsa) or the comment (e.g. user@hostname)
+
+    fab -H 192.0.2.32 generate_rsa_key:PUBLICKEY
+
+To view the list of tasks:
+
+    $ fab -l
+
+To view extended help on a task:
+
+    $ fab help:change_password
 
 # Instructions for development
 
@@ -40,50 +73,28 @@ To list other options, view the builtin help:
 Run the following commands:
 
 ```sh
-    $ bundle
-    $ bundle exec vagrant up # spin up VM
+    # spin up VM
+    $ vagrant up
 ```
 
-At this point you will have a local VM running, with the username 'ubuntu' and the password 'ubuntu'
-with SSH listening on a random port (see output of vagrant).
+At this point you will have a local VM running, with the username
+'ubuntu' and the password 'ubuntu' with SSH listening on a random
+port (see output of vagrant) on `127.0.0.1`
 
-## 2. Modify the VM using puppet
+## 2. Testing fabric against the VM
 
-The intention of this Repo is to provide a development platform where you can customise the VM using
-Puppet. This puppet code to configure a server can then be applied to remote servers.
+- You need to specify a `--port=PORT` argument, where `PORT` is
+  the SSH port your VM is mapped to. It's usually `2222` by default,
+  but it depends on how many Vagrant machines you are currently running.
 
-### 2.1 Including External Puppet Modules
+- You should specify a `-H` argument of `127.0.0.1`
 
-Where possible, you should aim not to re-invent the wheel. [Puppet Forge](https://forge.puppetlabs.com/)
-contains a large number of externally developed modules (of varying quality), that you can use to help
-configure your environment. The find out more about how to include external dependencies, please see the
-[README for Librarian Puppet](https://github.com/rodjek/librarian-puppet)
 
-### 2.2 Writing your own modules
-
-Puppet modules cannot be contained in this repository. All puppet code must live in manifests/site.pp and
-refer only to external modules if extended functionality is required. If you need to extend this repo and
-an external module does not exist, you must write one.
-
-### 2.3 Applying puppet changes to your VM
-
-`manifests/site.pp` includes a single node called **default** - adding puppet resources (via includes,
-classes or [native puppet types](http://docs.puppetlabs.com/references/latest/type.html)) to this node
-definition will make them available to your VM.
-
-To apply changed puppet code to your VM, from within this repository you can use the `bin/bootstrap`
-command to connect to your local VM and apply changes. By default the VM password is ubuntu:ubuntu and
-SSH will listen on a random port on localhost (as set by Vagrant).
-
-    ./bin/bootstrap -H -d -P2222 localhost
-
-## Testing password changing against the VM
-
-    ./bin/bootstrap -C -d -P2222 localhost
+    $ fab --port=2222 -H 127.0.0.1 change_password
 
 - If you mess up the password, you can reset it either by destroying and recreating the VM or:
 
 ```
     user@host$ vagrant up && vagrant ssh
-    vagrant@vm$ sudo password ubuntu
+    vagrant@vm$ sudo passwd ubuntu
 ```
