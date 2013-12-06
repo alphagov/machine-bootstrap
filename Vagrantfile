@@ -6,7 +6,7 @@ VAGRANTFILE_API_VERSION = "2"
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.ssh.forward_agent = true
   config.vm.box            = 'ubuntu-precise-cloud-image'
-  config.vm.box_url        = 'http://cloud-images.ubuntu.com/precise/current/precise-server-cloudimg-vagrant-amd64-disk1.box'
+  config.vm.box_url        = 'http://cloud-images.ubuntu.com/vagrant/precise/20131205/precise-server-cloudimg-amd64-vagrant-disk1.box'
   config.vm.provider :virtualbox do |vb|
     vb.customize        ["modifyvm", :id, "--rtcuseutc", "on"]
     vb.customize        ['modifyvm', :id, '--memory', 256]
