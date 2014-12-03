@@ -1,3 +1,9 @@
+# This repository is no longer maintained
+
+The functionality in this repository is now provided by [Puppet].
+
+[Puppet]: http://puppetlabs.com/puppet/puppet-open-source
+
 # Overview
 
 This repository contains fabric tasks for bootstrapping blank machines.
